@@ -1,0 +1,55 @@
+thermocouple:
+  type: "MAX6675"
+  spi_device: "/dev/spidev0.0"
+  spi_mode: 0
+  spi_max_hz: 4000000
+  samples_avg: 2
+
+ssr:
+  gpio_chip: "/dev/gpiochip0"
+  gpio_line: 23
+  active_high: true
+  window_seconds: 1.0
+
+motor:
+  mode: "software"
+  soft_pwm:
+    gpio_chip: "/dev/gpiochip0"
+    gpio_line: 24
+    active_high: true
+    pwm_hz: 250
+  hard_pwm:
+    chip: 0
+    channel: 0
+    frequency_hz: 1000
+
+pid:
+  kp: 12.0
+  ki: 0.8
+  kd: 30.0
+  sample_seconds: 0.5
+  output_limits: [0.0, 100.0]
+
+autotune:
+  enabled: false
+  relay_high_percent: 60.0
+  relay_low_percent: 0.0
+  hysteresis_c: 2.0
+  settle_cycles: 1
+  cycles_target: 6
+  rule: "zn_classic"
+
+safety:
+  absolute_max_c: 350.0
+  sensor_fault_action: "cut"
+  max_over_sp_c: 40.0
+
+barcode:
+  serial:
+    enabled: false
+    port: "/dev/ttyUSB2"
+    baudrate: 9600
+    timeout: 0.1
+
+ui:
+  poll_interval_seconds: 1
