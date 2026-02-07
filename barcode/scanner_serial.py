@@ -17,8 +17,7 @@ class SerialBarcodeScanner:
             b = self.ser.read(1)
             if not b:
                 continue
-            if b in (b'', b'
-'):
+            if b in (b'\n', b'\r'):
                 if buf:
                     code = buf.decode("utf-8", errors="ignore").strip()
                     buf.clear()
