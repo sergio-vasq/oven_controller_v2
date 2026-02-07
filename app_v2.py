@@ -94,8 +94,8 @@ def main():
 
     # Main window (operator UI only)
     win = MainWindow(root)
-    root.iconbitmap(default="oven.ico")
 
+    
     # --- Callbacks used by main ---
     def apply_part(code: str):
         ok, part = controller.apply_part(code)
