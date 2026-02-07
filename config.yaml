@@ -1,13 +1,13 @@
 thermocouple:
   type: "MAX6675"
-  spi_device: "/dev/spidev0.0"
+  spi_device: "/dev/spidev0.1"
   spi_mode: 0
   spi_max_hz: 4000000
   samples_avg: 2
 
 ssr:
-  gpio_chip: "/dev/gpiochip0"
-  gpio_line: 23
+  gpio_chip: "/dev/gpiochip1"
+  gpio_line: 14
   active_high: true
   window_seconds: 1.0
 
