@@ -53,3 +53,6 @@ barcode:
 
 ui:
   poll_interval_seconds: 1
+  appearance: Dark   # Dark | Light | System
+  theme: dark-blue        # blue | green | dark-blue
+  geometry: 1100x720

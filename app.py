@@ -1,20 +1,20 @@
 import sys
 import yaml
+import customtkinter as ctk
 import tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
 
 from data.storage import Storage
 from services.controller import ControllerV2
-from ui_tk.main_window import MainWindow
-from ui_tk.settings_window import SettingsWindow
 
-# Hardware drivers
+from ui_ctk.main_window_ctk import MainWindow
+from ui_ctk.settings_window_ctk import SettingsWindow
+
 from devices.thermocouple_max6675 import MAX6675
 from devices.ssr_timeproportion import SSRTimeProportion
 from devices.dc_motor_pwm import DCMotorPWM
 
-# Optional serial barcode
 try:
     from barcode.scanner_serial import SerialBarcodeScanner
 except Exception:
@@ -23,9 +23,12 @@ except Exception:
 CONFIG_PATH = Path("config.yaml")
 
 def save_tuned_gains_to_config(kp: float, ki: float, kd: float):
+    """Persist tuned PID gains into config.yaml under the `pid` section."""
     try:
-        with open(CONFIG_PATH, "r") as f:
-            cfg = yaml.safe_load(f) or {}
+        cfg = {}
+        if CONFIG_PATH.exists():
+            with open(CONFIG_PATH, "r") as f:
+                cfg = yaml.safe_load(f) or {}
         cfg.setdefault("pid", {})
         cfg["pid"]["kp"] = float(kp)
         cfg["pid"]["ki"] = float(ki)
@@ -36,45 +39,88 @@ def save_tuned_gains_to_config(kp: float, ki: float, kd: float):
     except Exception as e:
         return False, f"Failed to save config: {e}"
 
+def _load_config():
+    if CONFIG_PATH.exists():
+        with open(CONFIG_PATH, "r") as f:
+            return yaml.safe_load(f) or {}
+    # Default minimal config if file is missing
+    return {
+        "pid": {
+            "kp": 10.0,
+            "ki": 1.0,
+            "kd": 0.0,
+            "sample_seconds": 0.5,
+            "output_limits": [0.0, 100.0],
+        },
+        "ui": {
+            "appearance": "Dark",   # "Dark" | "Light" | "System"
+            "theme": "blue",        # "blue" | "green" | "dark-blue"
+            "geometry": "1100x720",
+        },
+    }
+
 def main():
-    with open("config.yaml", "r") as f:
-        cfg = yaml.safe_load(f)
+    cfg = _load_config()
 
     storage = Storage()
 
-    # Build devices (tolerant on Windows/dev)
     tc = None
     ssr = None
     motor = None
     try:
-        tc = MAX6675(
-            spi_device=cfg["thermocouple"]["spi_device"],
-            mode=int(cfg["thermocouple"].get("spi_mode", 0)),
-            max_hz=int(cfg["thermocouple"].get("spi_max_hz", 4000000)),
-            samples_avg=max(1, int(cfg["thermocouple"].get("samples_avg", 1)))
-        )
+        th_cfg = cfg.get("thermocouple", {})
+        if th_cfg:
+            tc = MAX6675(
+                spi_device=th_cfg["spi_device"],
+                mode=int(th_cfg.get("spi_mode", 0)),
+                max_hz=int(th_cfg.get("spi_max_hz", 4000000)),
+                samples_avg=max(1, int(th_cfg.get("samples_avg", 1)))
+            )
     except Exception as e:
         print(f"[WARN] MAX6675 not available: {e}")
+
     try:
-        ssr = SSRTimeProportion(
-            gpio_chip=cfg["ssr"]["gpio_chip"],
-            gpio_line=int(cfg["ssr"]["gpio_line"]),
-            active_high=bool(cfg["ssr"].get("active_high", True)),
-            window_s=float(cfg["ssr"].get("window_seconds", 1.0))
-        )
+        ssr_cfg = cfg.get("ssr", {})
+        if ssr_cfg:
+            ssr = SSRTimeProportion(
+                gpio_chip=ssr_cfg["gpio_chip"],
+                gpio_line=int(ssr_cfg["gpio_line"]),
+                active_high=bool(ssr_cfg.get("active_high", True)),
+                window_s=float(ssr_cfg.get("window_seconds", 1.0))
+            )
     except Exception as e:
         print(f"[WARN] SSR GPIO not available: {e}")
+
     try:
-        motor = DCMotorPWM(cfg["motor"])  # software/hardware via config
+        motor_cfg = cfg.get("motor", {})
+        if motor_cfg:
+            motor = DCMotorPWM(motor_cfg)  # software/hardware via config
     except Exception as e:
         print(f"[WARN] Motor PWM not available: {e}")
 
-    root = tk.Tk()
+    # Root window (CustomTkinter)
+    ui_cfg = cfg.get("ui", {})
+    ctk.set_appearance_mode(ui_cfg.get("appearance", "Dark"))
+    ctk.set_default_color_theme(ui_cfg.get("theme", "blue"))
 
-    # Build controller
-    pid_cfg = cfg["pid"]
+    root = ctk.CTk()
+    root.title("Oven Controller CSC")
+    geometry = ui_cfg.get("geometry", "1100x720")
+    try:
+        root.geometry(geometry)
+    except Exception:
+        root.geometry("1100x720")
+
+    # Main window (operator UI)
+    win = MainWindow(root)
+    
+    appearance = ui_cfg.get("appearance", "Dark")
+    win.apply_theme(appearance)
+
+    # Controller
+    pid_cfg = cfg.get("pid", {})
     saf_cfg = cfg.get("safety", {})
-    at_cfg  = cfg.get("autotune", {})
+    at_cfg = cfg.get("autotune", {})
 
     controller = ControllerV2(
         thermocouple=tc,
@@ -88,14 +134,9 @@ def main():
         output_limits=tuple(pid_cfg.get("output_limits", [0.0, 100.0])),
         safety_cfg=saf_cfg,
         autotune_cfg=at_cfg,
-        on_update=lambda data: root.after(0, win.update_status, data)
+        on_update=lambda data: root.after(0, win.handle_update, data)
     )
-    controller.start()
 
-    # Main window (operator UI only)
-    win = MainWindow(root)
-
-    
     # --- Callbacks used by main ---
     def apply_part(code: str):
         ok, part = controller.apply_part(code)
@@ -103,13 +144,12 @@ def main():
             messagebox.showwarning("Not found", f"Part code '{code}' not found.")
         else:
             win.load_setpoint(part["temp_setpoint"])  # reflect SP on status area
-            win.load_parts(storage.list_parts())       # refresh list (optional)
+            win.load_parts(storage.list_parts())       # refresh list
 
     def ui_add(payload):
         try:
             storage.add_part(payload["code"], payload["temp"], payload["speed"], payload.get("notes",""))
             win.load_parts(storage.list_parts())
-            win.clear_form()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to add: {e}")
 
@@ -117,7 +157,6 @@ def main():
         try:
             storage.update_part(payload["code"], payload["temp"], payload["speed"], payload.get("notes",""))
             win.load_parts(storage.list_parts())
-            win.clear_form()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to update: {e}")
 
@@ -125,11 +164,10 @@ def main():
         try:
             storage.delete_part(code)
             win.load_parts(storage.list_parts())
-            win.clear_form()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to delete: {e}")
 
-    # Settings window creation
+    # Settings window creation (single-instance behavior)
     settings_win_ref = {"obj": None}
 
     def open_settings():
@@ -164,7 +202,13 @@ def main():
             messagebox.showwarning("Auto-tune", msg)
 
     # Bind and load data
-    win.bind_callbacks(on_scan=apply_part, on_add=ui_add, on_update=ui_update, on_delete=ui_delete, on_open_settings=open_settings)
+    win.bind_callbacks(
+        on_scan=apply_part,
+        on_new=ui_add,
+        on_edit=ui_update,
+        on_delete=ui_delete,
+        on_open_settings=open_settings,
+    )
     win.load_parts(storage.list_parts())
 
     # Optional serial barcode
@@ -183,6 +227,9 @@ def main():
             serial_scanner.start()
         except Exception as e:
             print(f"[WARN] Barcode serial not available: {e}")
+
+    # Start controller after UI is ready
+    controller.start()
 
     def on_close():
         try:
@@ -213,6 +260,7 @@ def main():
 
     root.protocol("WM_DELETE_WINDOW", on_close)
     root.mainloop()
+
 
 if __name__ == "__main__":
     main()
