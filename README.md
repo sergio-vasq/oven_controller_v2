@@ -15,3 +15,20 @@ pip3 install -r requirements.txt
 python3 app_v2.py
 ```
 Enable SPI (`/dev/spidevX.Y`) and ensure permissions for `/dev/gpiochip*`.
+
+# PIN Configuration
+MAX6675
+- GND PIN_9  (GND)
+- VCC PIN_1  (+3.3V)
+- SCK PIN_23 (SPI0_CLK)
+- CS  PIN_26 (SPI0_CSN1)
+- S0  PIN_21 (SPI0_MISO)
+
+SSR (Oven)
+- GND PIN_6  (GND)
+- VDC PIN_35 (VCC)
+
+SSR (PWM)
+- GND PIN_14 (GND)
+- VDC PIN_32 (VCC)
+

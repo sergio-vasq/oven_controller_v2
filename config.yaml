@@ -14,10 +14,10 @@ ssr:
 motor:
   mode: "software"
   soft_pwm:
-    gpio_chip: "/dev/gpiochip0"
-    gpio_line: 24
+    gpio_chip: "/dev/gpiochip4"
+    gpio_line: 19
     active_high: true
-    pwm_hz: 250
+    pwm_hz: 1000
   hard_pwm:
     chip: 0
     channel: 0
