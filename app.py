@@ -5,7 +5,7 @@ from tkinter import messagebox
 from pathlib import Path
 
 from data.storage import Storage
-from services.controller_v2 import ControllerV2
+from services.controller import ControllerV2
 from ui_tk.main_window import MainWindow
 from ui_tk.settings_window import SettingsWindow
 
