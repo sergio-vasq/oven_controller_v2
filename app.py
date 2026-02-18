@@ -7,7 +7,6 @@ from pathlib import Path
 
 from data.storage import Storage
 from services.controller import ControllerV2
-
 from ui_ctk.main_window_ctk import MainWindow
 from ui_ctk.settings_window_ctk import SettingsWindow
 
@@ -21,6 +20,7 @@ except Exception:
     SerialBarcodeScanner = None
 
 CONFIG_PATH = Path("config.yaml")
+
 
 def save_tuned_gains_to_config(kp: float, ki: float, kd: float):
     """Persist tuned PID gains into config.yaml under the `pid` section."""
@@ -39,6 +39,7 @@ def save_tuned_gains_to_config(kp: float, ki: float, kd: float):
     except Exception as e:
         return False, f"Failed to save config: {e}"
 
+
 def _load_config():
     if CONFIG_PATH.exists():
         with open(CONFIG_PATH, "r") as f:
@@ -53,17 +54,18 @@ def _load_config():
             "output_limits": [0.0, 100.0],
         },
         "ui": {
-            "appearance": "Dark",   # "Dark" | "Light" | "System"
-            "theme": "blue",        # "blue" | "green" | "dark-blue"
+            "appearance": "Dark",  # "Dark" | "Light" | "System"
+            "theme": "blue",       # "blue" | "green" | "dark-blue"
             "geometry": "1100x720",
         },
     }
 
+
 def main():
     cfg = _load_config()
-
     storage = Storage()
 
+    # --- Devices (all optional; guarded by try/except) ---
     tc = None
     ssr = None
     motor = None
@@ -73,7 +75,7 @@ def main():
             tc = MAX6675(
                 spi_device=th_cfg["spi_device"],
                 mode=int(th_cfg.get("spi_mode", 0)),
-                max_hz=int(th_cfg.get("spi_max_hz", 4000000)),
+                max_hz=int(th_cfg.get("spi_max_hz", 4_000_000)),
                 samples_avg=max(1, int(th_cfg.get("samples_avg", 1)))
             )
     except Exception as e:
@@ -98,7 +100,7 @@ def main():
     except Exception as e:
         print(f"[WARN] Motor PWM not available: {e}")
 
-    # Root window (CustomTkinter)
+    # --- Root window (CustomTkinter) ---
     ui_cfg = cfg.get("ui", {})
     ctk.set_appearance_mode(ui_cfg.get("appearance", "Dark"))
     ctk.set_default_color_theme(ui_cfg.get("theme", "blue"))
@@ -111,16 +113,52 @@ def main():
     except Exception:
         root.geometry("1100x720")
 
-    # Main window (operator UI)
+    # --- Main window (operator UI) ---
     win = MainWindow(root)
-    
     appearance = ui_cfg.get("appearance", "Dark")
     win.apply_theme(appearance)
 
-    # Controller
+    # --- Controller & dispatcher ---
     pid_cfg = cfg.get("pid", {})
     saf_cfg = cfg.get("safety", {})
     at_cfg = cfg.get("autotune", {})
+
+    # single-instance ref for settings window
+    settings_win_ref = {"obj": None}
+
+    # small latch to not spam AT-DONE prints (optional)
+    _done_latch = {"printed": False}
+
+    def _ui_update_dispatch(data: dict):
+        """
+        Dispatch controller state to MainWindow and, if open, to SettingsWindow.
+        Also logs AT-DONE (if present) once.
+        """
+        # Update main window (plot, status)
+        win.handle_update(data)
+
+        # Update settings window (autotune pane) if open
+        sw = settings_win_ref.get("obj")
+        if sw is not None and sw.winfo_exists():
+            at_status = data.get("autotune", {})
+            try:
+                sw.update_autotune(at_status)
+            except Exception as e:
+                print("[WARN] SettingsWindow.update_autotune failed:", e)
+
+        # Optional: console log when autotune reports DONE (once)
+        at = data.get("autotune", {}) or {}
+        if at.get("status") == "done" and not _done_latch["printed"]:
+            _done_latch["printed"] = True
+            try:
+                print("[AT-DONE]",
+                      f"Tu={at.get('Tu')}",
+                      f"Ku={at.get('Ku')}",
+                      f"Kp={at.get('Kp')}",
+                      f"Ki={at.get('Ki')}",
+                      f"Kd={at.get('Kd')}")
+            except Exception:
+                pass
 
     controller = ControllerV2(
         thermocouple=tc,
@@ -134,8 +172,9 @@ def main():
         output_limits=tuple(pid_cfg.get("output_limits", [0.0, 100.0])),
         safety_cfg=saf_cfg,
         autotune_cfg=at_cfg,
-        on_update=lambda data: root.after(0, win.handle_update, data)
-    )
+        # IMPORTANT: route updates through the dispatcher, not directly to MainWindow
+        on_update=lambda data: root.after(0, _ui_update_dispatch, data)
+    )  # Se integra con tu ControllerV2 existente. [1](https://autozone1com-my.sharepoint.com/personal/sergio_vasquez_autozone_com/Documents/Microsoft%20Copilot%20Chat%20Files/autotune.py)
 
     # --- Callbacks used by main ---
     def apply_part(code: str):
@@ -144,18 +183,18 @@ def main():
             messagebox.showwarning("Not found", f"Part code '{code}' not found.")
         else:
             win.load_setpoint(part["temp_setpoint"])  # reflect SP on status area
-            win.load_parts(storage.list_parts())       # refresh list
+            win.load_parts(storage.list_parts())      # refresh list
 
     def ui_add(payload):
         try:
-            storage.add_part(payload["code"], payload["temp"], payload["speed"], payload.get("notes",""))
+            storage.add_part(payload["code"], payload["temp"], payload["speed"], payload.get("notes", ""))
             win.load_parts(storage.list_parts())
         except Exception as e:
             messagebox.showerror("Error", f"Failed to add: {e}")
 
     def ui_update(payload):
         try:
-            storage.update_part(payload["code"], payload["temp"], payload["speed"], payload.get("notes",""))
+            storage.update_part(payload["code"], payload["temp"], payload["speed"], payload.get("notes", ""))
             win.load_parts(storage.list_parts())
         except Exception as e:
             messagebox.showerror("Error", f"Failed to update: {e}")
@@ -168,13 +207,12 @@ def main():
             messagebox.showerror("Error", f"Failed to delete: {e}")
 
     # Settings window creation (single-instance behavior)
-    settings_win_ref = {"obj": None}
-
     def open_settings():
         if settings_win_ref["obj"] and settings_win_ref["obj"].winfo_exists():
             settings_win_ref["obj"].focus_set()
             return
-        sw = SettingsWindow(root,
+        sw = SettingsWindow(
+            root,
             initial_sp=controller.pid.setpoint,
             initial_kp=controller.pid.kp,
             initial_ki=controller.pid.ki,
@@ -182,6 +220,7 @@ def main():
             on_set_sp=controller.set_setpoint,
             on_set_pid=controller.set_gains,
             on_enable=controller.enable_control,
+            # start returns (ok, msg); we only need bool to drive UI state
             on_autotune_start=lambda params: controller.autotune_start(params)[0],
             on_autotune_stop=controller.autotune_stop,
             on_autotune_apply=lambda: _apply_tuned_and_persist()
@@ -193,13 +232,21 @@ def main():
         if not ok:
             messagebox.showinfo("Auto-tune", "No tuned gains available yet.")
             return
+
         # show in settings window if still open
         if settings_win_ref["obj"] and settings_win_ref["obj"].winfo_exists():
             settings_win_ref["obj"].show_tuned_gains(gains)
+
         # persist to YAML
         saved, msg = save_tuned_gains_to_config(gains["Kp"], gains["Ki"], gains["Kd"])
         if not saved:
             messagebox.showwarning("Auto-tune", msg)
+
+        # console confirmation
+        try:
+            print("[AT-APPLY]", f"Kp={gains['Kp']:.4f} Ki={gains['Ki']:.4f} Kd={gains['Kd']:.4f}")
+        except Exception:
+            pass
 
     # Bind and load data
     win.bind_callbacks(

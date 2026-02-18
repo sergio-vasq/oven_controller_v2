@@ -21,6 +21,7 @@ class RelayAutoTuner:
         if self._is_done(): Ku,Tu=self._estimate_ku_tu(); Kp,Ki,Kd=self._suggest_pid(Ku,Tu); prog.update({"status":"done","Ku":Ku,"Tu":Tu,"Kp":Kp,"Ki":Ki,"Kd":Kd})
         return prog
     def _cross(self, direction: str, now: float):
+        print(f"[AT-X] dir={direction}, now={now:.2f}, last={self._last_cross_time if self._last_cross_time else None}, prev={self._cross_dir}, pending={getattr(self,'_pending_half', None)}")
         if self._cross_dir is None: self._cross_dir=direction; self._last_cross_time=now; self._close_peak(direction); return
         if direction!=self._cross_dir:
             half=now-self._last_cross_time
@@ -34,11 +35,24 @@ class RelayAutoTuner:
         usable=max(0,self._cycles_count-self.settle_cycles); return usable>=self.cycles_target and len(self._periods)>=self.cycles_target
     def _estimate_ku_tu(self):
         recent=self._periods[-self.cycles_target:]; Tu=mean(recent) if recent else None
-        if self._peaks_high and self._peaks_low: a=(mean(self._peaks_high[-self.cycles_target:])-mean(self._peaks_low[-self.cycles_target:]))/2.0
-        else: a=None
-        d=(self.high-self.low)/2.0; Ku=None
-        if a and a>0: Ku=4.0*d/(math.pi*a)
-        return Ku,Tu
+        ph = self._peaks_high[-self.cycles_target:]
+        pl = self._peaks_low[-self.cycles_target:]
+        print("[AT-AMP]",
+            f"peaks_high={ph}",
+            f"peaks_low={pl}")
+       
+        if self._peaks_high and self._peaks_low:
+            a = (mean(ph) - mean(pl)) / 2.0
+        else:
+            a = None
+
+        d = (self.high - self.low) / 2.0
+        Ku = (4.0 * d / (math.pi * a)) if (a and a > 0) else None
+
+        # DEBUG extra:
+        print("[AT-AMP2]",
+            f"a={a}", f"d={d}", f"Ku={Ku}", f"Tu={Tu}")
+        return Ku, Tu
     def _suggest_pid(self, Ku, Tu):
         if not Ku or not Tu: return None,None,None
         r=(self.rule or 'zn_classic').lower()

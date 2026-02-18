@@ -24,19 +24,19 @@ motor:
     frequency_hz: 1000
 
 pid:
-  kp: 12.0
-  ki: 0.8
-  kd: 30.0
+  kp: 35.2589
+  ki: 0.3997
+  kd: 777.404
   sample_seconds: 0.5
   output_limits: [0.0, 100.0]
 
 autotune:
   enabled: false
-  relay_high_percent: 60.0
+  relay_high_percent: 50.0
   relay_low_percent: 0.0
-  hysteresis_c: 2.0
+  hysteresis_c: 0.5
   settle_cycles: 1
-  cycles_target: 6
+  cycles_target: 1
   rule: "zn_classic"
 
 safety:

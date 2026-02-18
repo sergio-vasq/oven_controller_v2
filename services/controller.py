@@ -17,6 +17,7 @@ class ControllerV2:
         if params: cfg.update(params)
         self.autotune=RelayAutoTuner(setpoint_c=self.pid.setpoint,sample_s=self.sample_s,high_percent=float(cfg.get("relay_high_percent",60.0)),low_percent=float(cfg.get("relay_low_percent",0.0)),hysteresis_c=float(cfg.get("hysteresis_c",2.0)),settle_cycles=int(cfg.get("settle_cycles",1)),cycles_target=int(cfg.get("cycles_target",6)),output_limits=(self.pid.min_out,self.pid.max_out),rule=str(cfg.get("rule","zn_classic")))
         self._status["autotune"]={"active":True}; self.enabled=False; self._status["enabled"]=False
+        print("[AT-START]", "settle_cycles=", self.autotune.settle_cycles, "cycles_target=", self.autotune.cycles_target,      "hyst=", self.autotune.hyst,      "high=", self.autotune.high, "low=", self.autotune.low,      "rule=", self.autotune.rule)
     def start(self):
         self._stop.clear();
         if not self._thread.is_alive(): self._thread=threading.Thread(target=self._loop,daemon=True); self._thread.start()
@@ -76,11 +77,22 @@ class ControllerV2:
             u=self._status.get("u",0.0); auto_status=self._status.get("autotune",{"active":False})
             if self.autotune and not cut and pv is not None:
                 prog=self.autotune.update(pv,now); u=self.autotune.output();
+                print(f"[AT] pv={pv:.2f} sp={self.pid.setpoint:.2f} hyst={self.autotune.hyst:.2f} on={self.autotune._on} cycles={self.autotune._cycles_count} status={prog.get('status')} u={u:.1f}%")
+                print("[AT]", "cycles=", self.autotune._cycles_count, "periods=", len(self.autotune._periods), "usable=", max(0, self.autotune._cycles_count - self.autotune.settle_cycles), "settle=", self.autotune.settle_cycles, "target=", self.autotune.cycles_target)
                 if self.heater is not None:
                     try: self.heater.set_duty(u)
                     except Exception: pass
                 auto_status.update(prog)
-                if prog.get("status")=="done": auto_status["active"]=False; auto_status["done"]=True; self.autotune=None
+                if prog.get("status") == "done":
+                    print("[AT-DONE]",
+                        f"Tu={prog.get('Tu')}",
+                        f"Ku={prog.get('Ku')}",
+                        f"Kp={prog.get('Kp')}",
+                        f"Ki={prog.get('Ki')}",
+                        f"Kd={prog.get('Kd')}")
+                    auto_status["active"] = False
+                    auto_status["done"] = True
+                    self.autotune = None
             else:
                 auto_status={"active":False} if not self.autotune else auto_status
                 if self.enabled and not cut and pv is not None:
