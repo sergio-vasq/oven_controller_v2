@@ -1,8 +1,10 @@
 import threading, time
+
 try:
     from periphery import GPIO
 except Exception:
     GPIO = None
+
 
 class SSRTimeProportion:
     def __init__(self, gpio_chip: str, gpio_line: int, active_high: bool = True, window_s: float = 1.0):
@@ -15,14 +17,17 @@ class SSRTimeProportion:
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._loop, daemon=True)
         self._thread.start()
+
     def set_duty(self, duty_percent: float):
         self._duty = max(0.0, min(100.0, float(duty_percent)))
+
     def _set_output(self, on: bool):
         level = bool(on) if self.active_high else not bool(on)
         try:
             self.gpio.write(level)
         except Exception:
             pass
+
     def _loop(self):
         while not self._stop.is_set():
             on_time = self.window_s * (self._duty / 100.0)
@@ -34,6 +39,7 @@ class SSRTimeProportion:
                 self._set_output(False)
                 self._stop.wait(off_time)
         self._set_output(False)
+
     def close(self):
         self._stop.set()
         try:

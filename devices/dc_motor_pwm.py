@@ -1,9 +1,11 @@
 import threading, time
+
 try:
     from periphery import GPIO, PWM
 except Exception:
     GPIO = None
     PWM = None
+
 
 class DCMotorPWM:
     def __init__(self, cfg: dict):
@@ -37,6 +39,7 @@ class DCMotorPWM:
             self._gpio = GPIO(chip, line, "out")
             self.thread = threading.Thread(target=self._soft_loop, daemon=True)
             self.thread.start()
+
     def set_percent(self, percent: float):
         self.percent = max(0.0, min(100.0, float(percent)))
         if self.mode == "hardware" and self._pwm is not None:
@@ -44,12 +47,14 @@ class DCMotorPWM:
                 self._pwm.duty_cycle = self.percent / 100.0
             except Exception:
                 pass
+
     def _write_gpio(self, on: bool):
         lvl = bool(on) if self._active_high else not bool(on)
         try:
             self._gpio.write(lvl)
         except Exception:
             pass
+
     def _soft_loop(self):
         while not self._stop.is_set():
             duty = self.percent / 100.0
@@ -62,6 +67,7 @@ class DCMotorPWM:
                 self._write_gpio(False)
                 self._stop.wait(off_time)
         self._write_gpio(False)
+
     def close(self):
         self._stop.set()
         if self.thread:

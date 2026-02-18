@@ -5,6 +5,7 @@ except Exception:
     SPI = None
 import time
 
+
 class MAX6675:
     def __init__(self, spi_device: str, mode: int = 0, max_hz: int = 4000000, samples_avg: int = 1):
         if SPI is None:
@@ -12,6 +13,7 @@ class MAX6675:
         self.spi = SPI(spi_device, mode, max_hz)
         self.samples_avg = max(1, int(samples_avg))
         self._last_fault = None
+        
     def read_c(self) -> Optional[float]:
         temps = []
         for _ in range(self.samples_avg):
@@ -24,6 +26,7 @@ class MAX6675:
             temps.append(temp_c)
             time.sleep(0.01)
         return sum(temps) / len(temps)
+    
     def close(self):
         try:
             self.spi.close()
