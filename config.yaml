@@ -12,7 +12,7 @@ ssr:
   window_seconds: 1.0
 
 motor:
-  mode: "software"
+  mode: "hardware"
   soft_pwm:
     gpio_chip: "/dev/gpiochip4"
     gpio_line: 19
@@ -22,6 +22,17 @@ motor:
     chip: 0
     channel: 0
     frequency_hz: 1000
+  invert_pwm: false
+  enables:
+    r_en:
+      gpio_chip: "/dev/gpiochip4"
+      gpio_line: 8
+      active_high: true
+    l_en:
+      gpio_chip: "/dev/gpiochip4"
+      gpio_line: 22
+      active_high: true
+
 
 pid:
   kp: 35.2589

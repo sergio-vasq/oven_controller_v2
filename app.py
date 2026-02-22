@@ -57,7 +57,7 @@ def _load_config():
             "appearance": "Dark",  # "Dark" | "Light" | "System"
             "theme": "blue",       # "blue" | "green" | "dark-blue"
             "geometry": "1100x720",
-        },
+        }
     }
 
 
