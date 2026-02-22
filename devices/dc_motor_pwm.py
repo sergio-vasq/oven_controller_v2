@@ -8,6 +8,7 @@ except Exception:
     PWM = None
 
 
+
 class DCMotorPWM:
     """
     Control de motor DC con:
@@ -115,6 +116,7 @@ class DCMotorPWM:
             self.thread = threading.Thread(target=self._soft_loop, daemon=True)
             self.thread.start()
 
+
     def set_percent(self, percent: float):
         """
         Ajusta el duty del PWM (0..100 %).
@@ -140,6 +142,7 @@ class DCMotorPWM:
             self._gpio.write(lvl)
         except Exception:
             pass
+
 
     def _soft_loop(self):
         while not self._stop.is_set():

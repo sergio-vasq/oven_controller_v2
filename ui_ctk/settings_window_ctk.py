@@ -2,12 +2,21 @@ import customtkinter as ctk
 import tkinter as tk
 from tkinter import messagebox
 
+
 class SettingsWindow(ctk.CTkToplevel):
     def __init__(
-        self, master,
-        initial_sp, initial_kp, initial_ki, initial_kd,
-        on_set_sp, on_set_pid, on_enable,
-        on_autotune_start, on_autotune_stop, on_autotune_apply
+        self,
+        master,
+        initial_sp,
+        initial_kp,
+        initial_ki,
+        initial_kd,
+        on_set_sp,
+        on_set_pid,
+        on_enable,
+        on_autotune_start,
+        on_autotune_stop,
+        on_autotune_apply,
     ):
         super().__init__(master)
         self.title("Configuración — Control y Autoajuste")
@@ -36,11 +45,14 @@ class SettingsWindow(ctk.CTkToplevel):
         section_ctrl.grid(row=0, column=0, sticky="w")
         section_ctrl.grid_columnconfigure(0, weight=1)
 
-        ctrl_title = ctk.CTkLabel(section_ctrl, text="Control (SP y PID)",
-                                  font=ctk.CTkFont(size=15, weight="bold"))
-        ctrl_title.grid(row=0, column=0, sticky="w", padx=(4,4), pady=(2,2))
+        ctrl_title = ctk.CTkLabel(
+            section_ctrl,
+            text="Control (SP y PID)",
+            font=ctk.CTkFont(size=15, weight="bold"),
+        )
+        ctrl_title.grid(row=0, column=0, sticky="w", padx=(4, 4), pady=(2, 2))
         ctrl_sep = ctk.CTkFrame(section_ctrl, height=2, fg_color="#444444")
-        ctrl_sep.grid(row=1, column=0, sticky="ew", padx=0, pady=(0,8))
+        ctrl_sep.grid(row=1, column=0, sticky="ew", padx=0, pady=(0, 8))
 
         # Grid 3 columnas: (0) label, (1) entry, (2) button
         ctrl = ctk.CTkFrame(section_ctrl)
@@ -50,47 +62,60 @@ class SettingsWindow(ctk.CTkToplevel):
         ctrl.grid_columnconfigure(2, weight=0, minsize=120)
 
         # Row 0: Setpoint
-        ctk.CTkLabel(ctrl, text="Setpoint (°C)").grid(row=0, column=0, sticky="w", padx=(6,6), pady=(6,6))
+        ctk.CTkLabel(ctrl, text="Setpoint (°C)").grid(
+            row=0, column=0, sticky="w", padx=(6, 6), pady=(6, 6)
+        )
         self.ent_sp = ctk.CTkEntry(ctrl, width=100)
-        self.ent_sp.grid(row=0, column=1, sticky="w", padx=(0,8), pady=(6,6))
+        self.ent_sp.grid(row=0, column=1, sticky="w", padx=(0, 8), pady=(6, 6))
         self.ent_sp.insert(0, f"{float(initial_sp):.2f}")
-        ctk.CTkButton(ctrl, text="Aplicar SP", command=self._apply_sp, width=100)\
-            .grid(row=0, column=2, sticky="w", padx=(0,6), pady=(6,6))
+        ctk.CTkButton(ctrl, text="Aplicar SP", command=self._apply_sp, width=100).grid(
+            row=0, column=2, sticky="w", padx=(0, 6), pady=(6, 6)
+        )
 
         # Row 1: Kp
-        ctk.CTkLabel(ctrl, text="Kp").grid(row=1, column=0, sticky="w", padx=(6,6), pady=(4,6))
+        ctk.CTkLabel(ctrl, text="Kp").grid(
+            row=1, column=0, sticky="w", padx=(6, 6), pady=(4, 6)
+        )
         self.ent_kp = ctk.CTkEntry(ctrl, width=100)
-        self.ent_kp.grid(row=1, column=1, sticky="w", padx=(0,8), pady=(4,6))
+        self.ent_kp.grid(row=1, column=1, sticky="w", padx=(0, 8), pady=(4, 6))
         self.ent_kp.insert(0, f"{float(initial_kp):.6f}")
 
         # Row 2: Ki
-        ctk.CTkLabel(ctrl, text="Ki").grid(row=2, column=0, sticky="w", padx=(6,6), pady=(4,6))
+        ctk.CTkLabel(ctrl, text="Ki").grid(
+            row=2, column=0, sticky="w", padx=(6, 6), pady=(4, 6)
+        )
         self.ent_ki = ctk.CTkEntry(ctrl, width=100)
-        self.ent_ki.grid(row=2, column=1, sticky="w", padx=(0,8), pady=(4,6))
+        self.ent_ki.grid(row=2, column=1, sticky="w", padx=(0, 8), pady=(4, 6))
         self.ent_ki.insert(0, f"{float(initial_ki):.6f}")
 
         # Row 3: Kd + apply PID
-        ctk.CTkLabel(ctrl, text="Kd").grid(row=3, column=0, sticky="w", padx=(6,6), pady=(4,6))
+        ctk.CTkLabel(ctrl, text="Kd").grid(
+            row=3, column=0, sticky="w", padx=(6, 6), pady=(4, 6)
+        )
         self.ent_kd = ctk.CTkEntry(ctrl, width=100)
-        self.ent_kd.grid(row=3, column=1, sticky="w", padx=(0,8), pady=(4,6))
+        self.ent_kd.grid(row=3, column=1, sticky="w", padx=(0, 8), pady=(4, 6))
         self.ent_kd.insert(0, f"{float(initial_kd):.6f}")
-        ctk.CTkButton(ctrl, text="Aplicar PID", command=self._apply_pid, width=100)\
-            .grid(row=3, column=2, sticky="w", padx=(0,6), pady=(4,6))
+        ctk.CTkButton(
+            ctrl, text="Aplicar PID", command=self._apply_pid, width=100
+        ).grid(row=3, column=2, sticky="w", padx=(0, 6), pady=(4, 6))
 
         # Row 4: Enable/disable loop
-        self.btn_enable = ctk.CTkButton(ctrl, text="Habilitar", command=self._toggle_enable, width=100)
-        self.btn_enable.grid(row=4, column=1, sticky="w", padx=(0,0), pady=(8,6))
+        self.btn_enable = ctk.CTkButton(
+            ctrl, text="Habilitar", command=self._toggle_enable, width=100
+        )
+        self.btn_enable.grid(row=4, column=1, sticky="w", padx=(0, 0), pady=(8, 6))
 
         # ========== Section: PID Auto-Tuning ==========
         section_at = ctk.CTkFrame(body, fg_color="transparent")
-        section_at.grid(row=1, column=0, sticky="w", pady=(10,0))
+        section_at.grid(row=1, column=0, sticky="w", pady=(10, 0))
         section_at.grid_columnconfigure(0, weight=1)
 
-        at_title = ctk.CTkLabel(section_at, text="PID Auto-Tuning",
-                                font=ctk.CTkFont(size=15, weight="bold"))
-        at_title.grid(row=0, column=0, sticky="w", padx=(4,4), pady=(2,2))
+        at_title = ctk.CTkLabel(
+            section_at, text="PID Auto-Tuning", font=ctk.CTkFont(size=15, weight="bold")
+        )
+        at_title.grid(row=0, column=0, sticky="w", padx=(4, 4), pady=(2, 2))
         at_sep = ctk.CTkFrame(section_at, height=2, fg_color="#444444")
-        at_sep.grid(row=1, column=0, sticky="ew", padx=0, pady=(0,8))
+        at_sep.grid(row=1, column=0, sticky="ew", padx=0, pady=(0, 8))
 
         at = ctk.CTkFrame(section_at)
         at.grid(row=2, column=0, sticky="w")
@@ -99,73 +124,118 @@ class SettingsWindow(ctk.CTkToplevel):
         r = 0
 
         # Parameters (SP, %High, %Low, Hyst, Settle, Target, Rule)
-        ctk.CTkLabel(at, text="SP (°C)").grid(row=r, column=0, sticky="w", padx=(6,6), pady=(4,6))
+        ctk.CTkLabel(at, text="SP (°C)").grid(
+            row=r, column=0, sticky="w", padx=(6, 6), pady=(4, 6)
+        )
         self.at_sp = ctk.CTkEntry(at, width=100)
-        self.at_sp.grid(row=r, column=1, sticky="w", padx=(0,8), pady=(4,6)); r += 1
+        self.at_sp.grid(row=r, column=1, sticky="w", padx=(0, 8), pady=(4, 6))
+        r += 1
 
-        ctk.CTkLabel(at, text="% Alto").grid(row=r, column=0, sticky="w", padx=(6,6), pady=(4,6))
+        ctk.CTkLabel(at, text="% Alto").grid(
+            row=r, column=0, sticky="w", padx=(6, 6), pady=(4, 6)
+        )
         self.at_high = ctk.CTkEntry(at, width=100)
-        self.at_high.insert(0, "60")   # valor típico por defecto
-        self.at_high.grid(row=r, column=1, sticky="w", padx=(0,8), pady=(4,6)); r += 1
+        self.at_high.insert(0, "60")  # valor típico por defecto
+        self.at_high.grid(row=r, column=1, sticky="w", padx=(0, 8), pady=(4, 6))
+        r += 1
 
-        ctk.CTkLabel(at, text="% Bajo").grid(row=r, column=0, sticky="w", padx=(6,6), pady=(4,6))
+        ctk.CTkLabel(at, text="% Bajo").grid(
+            row=r, column=0, sticky="w", padx=(6, 6), pady=(4, 6)
+        )
         self.at_low = ctk.CTkEntry(at, width=100)
         self.at_low.insert(0, "0")
-        self.at_low.grid(row=r, column=1, sticky="w", padx=(0,8), pady=(4,6)); r += 1
+        self.at_low.grid(row=r, column=1, sticky="w", padx=(0, 8), pady=(4, 6))
+        r += 1
 
-        ctk.CTkLabel(at, text="Hist (°C)").grid(row=r, column=0, sticky="w", padx=(6,6), pady=(4,6))
+        ctk.CTkLabel(at, text="Hist (°C)").grid(
+            row=r, column=0, sticky="w", padx=(6, 6), pady=(4, 6)
+        )
         self.at_hyst = ctk.CTkEntry(at, width=100)
         self.at_hyst.insert(0, "1.0")
-        self.at_hyst.grid(row=r, column=1, sticky="w", padx=(0,8), pady=(4,6)); r += 1
+        self.at_hyst.grid(row=r, column=1, sticky="w", padx=(0, 8), pady=(4, 6))
+        r += 1
 
-        ctk.CTkLabel(at, text="Asentamiento (ciclos)").grid(row=r, column=0, sticky="w", padx=(6,6), pady=(4,6))
+        ctk.CTkLabel(at, text="Asentamiento (ciclos)").grid(
+            row=r, column=0, sticky="w", padx=(6, 6), pady=(4, 6)
+        )
         self.at_settle = ctk.CTkEntry(at, width=100)
         self.at_settle.insert(0, "1")
-        self.at_settle.grid(row=r, column=1, sticky="w", padx=(0,8), pady=(4,6)); r += 1
+        self.at_settle.grid(row=r, column=1, sticky="w", padx=(0, 8), pady=(4, 6))
+        r += 1
 
-        ctk.CTkLabel(at, text="Ciclos útiles (target)").grid(row=r, column=0, sticky="w", padx=(6,6), pady=(4,10))
+        ctk.CTkLabel(at, text="Ciclos útiles (target)").grid(
+            row=r, column=0, sticky="w", padx=(6, 6), pady=(4, 10)
+        )
         self.at_cycles = ctk.CTkEntry(at, width=100)
         self.at_cycles.insert(0, "6")
-        self.at_cycles.grid(row=r, column=1, sticky="w", padx=(0,8), pady=(4,10)); r += 1
+        self.at_cycles.grid(row=r, column=1, sticky="w", padx=(0, 8), pady=(4, 10))
+        r += 1
 
-        ctk.CTkLabel(at, text="Regla").grid(row=r, column=0, sticky="w", padx=(6,6), pady=(4,10))
-        self.at_rule = ctk.CTkComboBox(at, values=("zn_classic","zn_no_overshoot","tyreus_luyben"), width=100)
-        self.at_rule.grid(row=r, column=1, sticky="w", padx=(0,8), pady=(4,10))
-        self.at_rule.set("zn_classic"); r += 1
+        ctk.CTkLabel(at, text="Regla").grid(
+            row=r, column=0, sticky="w", padx=(6, 6), pady=(4, 10)
+        )
+        self.at_rule = ctk.CTkComboBox(
+            at, values=("zn_classic", "zn_no_overshoot", "tyreus_luyben"), width=100
+        )
+        self.at_rule.grid(row=r, column=1, sticky="w", padx=(0, 8), pady=(4, 10))
+        self.at_rule.set("zn_classic")
+        r += 1
 
         # Toggle auto-tune
-        self.btn_at_toggle = ctk.CTkButton(at, text="Iniciar autoajuste", command=self._toggle_autotune, width=140)
-        self.btn_at_toggle.grid(row=r, column=1, sticky="w", padx=(0,0), pady=(4,12)); r += 1
+        self.btn_at_toggle = ctk.CTkButton(
+            at, text="Iniciar autoajuste", command=self._toggle_autotune, width=140
+        )
+        self.btn_at_toggle.grid(row=r, column=1, sticky="w", padx=(0, 0), pady=(4, 12))
+        r += 1
 
         # Results
-        ctk.CTkLabel(at, text="Ciclos").grid(row=r, column=0, sticky="w", padx=(6,6), pady=(2,4))
+        ctk.CTkLabel(at, text="Ciclos").grid(
+            row=r, column=0, sticky="w", padx=(6, 6), pady=(2, 4)
+        )
         self.lbl_cycles_val = ctk.CTkLabel(at, text="0")
-        self.lbl_cycles_val.grid(row=r, column=1, sticky="w", padx=(0,8), pady=(2,4)); r += 1
+        self.lbl_cycles_val.grid(row=r, column=1, sticky="w", padx=(0, 8), pady=(2, 4))
+        r += 1
 
-        ctk.CTkLabel(at, text="Ku").grid(row=r, column=0, sticky="w", padx=(6,6), pady=(2,4))
+        ctk.CTkLabel(at, text="Ku").grid(
+            row=r, column=0, sticky="w", padx=(6, 6), pady=(2, 4)
+        )
         self.lbl_ku_val = ctk.CTkLabel(at, text="—")
-        self.lbl_ku_val.grid(row=r, column=1, sticky="w", padx=(0,8), pady=(2,4)); r += 1
+        self.lbl_ku_val.grid(row=r, column=1, sticky="w", padx=(0, 8), pady=(2, 4))
+        r += 1
 
-        ctk.CTkLabel(at, text="Tu").grid(row=r, column=0, sticky="w", padx=(6,6), pady=(2,4))
+        ctk.CTkLabel(at, text="Tu").grid(
+            row=r, column=0, sticky="w", padx=(6, 6), pady=(2, 4)
+        )
         self.lbl_tu_val = ctk.CTkLabel(at, text="— s")
-        self.lbl_tu_val.grid(row=r, column=1, sticky="w", padx=(0,8), pady=(2,4)); r += 1
+        self.lbl_tu_val.grid(row=r, column=1, sticky="w", padx=(0, 8), pady=(2, 4))
+        r += 1
 
-        ctk.CTkLabel(at, text="Kp").grid(row=r, column=0, sticky="w", padx=(6,6), pady=(2,4))
+        ctk.CTkLabel(at, text="Kp").grid(
+            row=r, column=0, sticky="w", padx=(6, 6), pady=(2, 4)
+        )
         self.lbl_kp_val = ctk.CTkLabel(at, text="—")
-        self.lbl_kp_val.grid(row=r, column=1, sticky="w", padx=(0,8), pady=(2,4)); r += 1
+        self.lbl_kp_val.grid(row=r, column=1, sticky="w", padx=(0, 8), pady=(2, 4))
+        r += 1
 
-        ctk.CTkLabel(at, text="Ki").grid(row=r, column=0, sticky="w", padx=(6,6), pady=(2,4))
+        ctk.CTkLabel(at, text="Ki").grid(
+            row=r, column=0, sticky="w", padx=(6, 6), pady=(2, 4)
+        )
         self.lbl_ki_val = ctk.CTkLabel(at, text="—")
-        self.lbl_ki_val.grid(row=r, column=1, sticky="w", padx=(0,8), pady=(2,4)); r += 1
+        self.lbl_ki_val.grid(row=r, column=1, sticky="w", padx=(0, 8), pady=(2, 4))
+        r += 1
 
-        ctk.CTkLabel(at, text="Kd").grid(row=r, column=0, sticky="w", padx=(6,6), pady=(2,8))
+        ctk.CTkLabel(at, text="Kd").grid(
+            row=r, column=0, sticky="w", padx=(6, 6), pady=(2, 8)
+        )
         self.lbl_kd_val = ctk.CTkLabel(at, text="—")
-        self.lbl_kd_val.grid(row=r, column=1, sticky="w", padx=(0,8), pady=(2,8)); r += 1
+        self.lbl_kd_val.grid(row=r, column=1, sticky="w", padx=(0, 8), pady=(2, 8))
+        r += 1
 
         # Apply tuned gains (disabled until done & gains exist)
-        self.btn_at_apply = ctk.CTkButton(at, text="Aplicar ganancias sintonizadas",
-                                          command=self._at_apply, width=180)
-        self.btn_at_apply.grid(row=r, column=1, sticky="w", padx=(0,6), pady=(2,8))
+        self.btn_at_apply = ctk.CTkButton(
+            at, text="Aplicar ganancias sintonizadas", command=self._at_apply, width=180
+        )
+        self.btn_at_apply.grid(row=r, column=1, sticky="w", padx=(0, 6), pady=(2, 8))
         self.btn_at_apply.configure(state="disabled")
         r += 1
 
@@ -231,12 +301,17 @@ class SettingsWindow(ctk.CTkToplevel):
                 if self.on_autotune_start:
                     ok = self.on_autotune_start(params)
                     if not bool(ok):
-                        messagebox.showwarning("Autoajuste", "No se pudo iniciar el autoajuste (ver hardware).")
+                        messagebox.showwarning(
+                            "Autoajuste",
+                            "No se pudo iniciar el autoajuste (ver hardware).",
+                        )
                         return
                 self._autotune_running = True
                 self.btn_at_toggle.configure(text="Detener autoajuste")
             except ValueError:
-                messagebox.showwarning("Autoajuste", "Verifica que los parámetros sean numéricos.")
+                messagebox.showwarning(
+                    "Autoajuste", "Verifica que los parámetros sean numéricos."
+                )
         else:
             # Stop
             if self.on_autotune_stop:
@@ -263,14 +338,19 @@ class SettingsWindow(ctk.CTkToplevel):
         """Show tuned gains in results (and copy into PID entries if desired)."""
         kp, ki, kd = gains.get("Kp"), gains.get("Ki"), gains.get("Kd")
         # Update the PID entries so user can review them
-        self.ent_kp.delete(0, tk.END); self.ent_kp.insert(0, f"{kp:.4f}")
-        self.ent_ki.delete(0, tk.END); self.ent_ki.insert(0, f"{ki:.4f}")
-        self.ent_kd.delete(0, tk.END); self.ent_kd.insert(0, f"{kd:.4f}")
+        self.ent_kp.delete(0, tk.END)
+        self.ent_kp.insert(0, f"{kp:.4f}")
+        self.ent_ki.delete(0, tk.END)
+        self.ent_ki.insert(0, f"{ki:.4f}")
+        self.ent_kd.delete(0, tk.END)
+        self.ent_kd.insert(0, f"{kd:.4f}")
         # Update the results labels
         self.lbl_kp_val.configure(text=f"{kp:.4f}")
         self.lbl_ki_val.configure(text=f"{ki:.4f}")
         self.lbl_kd_val.configure(text=f"{kd:.4f}")
-        messagebox.showinfo("Autoajuste", f"Ganancias aplicadas:\nKp={kp:.4f}\nKi={ki:.4f}\nKd={kd:.4f}")
+        messagebox.showinfo(
+            "Autoajuste", f"Ganancias aplicadas:\nKp={kp:.4f}\nKi={ki:.4f}\nKd={kd:.4f}"
+        )
 
     # ---------- NUEVO: actualiza panel de autotune en tiempo real ----------
     def update_autotune(self, at_status: dict):
@@ -311,8 +391,10 @@ class SettingsWindow(ctk.CTkToplevel):
 
         # Habilitar "Aplicar" solo cuando haya 'done' y gains válidas
         done = bool(at_status.get("done")) or (at_status.get("status") == "done")
-        gains_ready = (Kp is not None and Ki is not None and Kd is not None)
-        self.btn_at_apply.configure(state=("normal" if (done and gains_ready) else "disabled"))
+        gains_ready = Kp is not None and Ki is not None and Kd is not None
+        self.btn_at_apply.configure(
+            state=("normal" if (done and gains_ready) else "disabled")
+        )
 
         # Texto del botón toggle según active/done
         if at_status.get("active"):
