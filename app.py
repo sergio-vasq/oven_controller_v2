@@ -4,6 +4,7 @@ import customtkinter as ctk
 import tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
+import subprocess
 
 from data.storage import Storage
 from services.controller import ControllerV2
@@ -21,6 +22,24 @@ except Exception:
 
 CONFIG_PATH = Path("config.yaml")
 
+def _fix_pwm_polarity_on_start():
+    """
+    Intenta fijar la polaridad del PWM a 'normal' antes de abrir el PWM con python-periphery.
+    Si el driver no lo permite, no falla: seguimos con invert_pwm en YAML.
+    """
+    try:
+        # Si agregaste la regla en sudoers:
+        subprocess.run(
+            ["sudo", "/usr/local/bin/fix_pwm_polarity.sh"],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception as e:
+        # No hacemos raise: continuamos. Tu lógica invert_pwm del YAML cubrirá el caso inversed.
+        print(f"[WARN] No fue posible aplicar polarity=normal por script: {e}")
+
+_fix_pwm_polarity_on_start()
 
 def save_tuned_gains_to_config(kp: float, ki: float, kd: float):
     """Persist tuned PID gains into config.yaml under the `pid` section."""
