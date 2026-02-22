@@ -10,21 +10,20 @@ Enable SPI (`/dev/spidevX.Y`) and ensure permissions for `/dev/gpiochip*`.
 
 # PIN Configuration
 MAX6675
-- GND PIN_9  (GND)
-- VCC PIN_1  (+3.3V)
-- SCK PIN_23 (SPI0_CLK)
-- CS  PIN_26 (SPI0_CSN1)
-- S0  PIN_21 (SPI0_MISO)
+- GND   | PIN_9  (GND)       | Brown
+- VCC   | PIN_1  (+3.3V)     | Red/Purple
+- SCK   | PIN_23 (SPI0_CLK)  | Orange
+- CS    | PIN_26 (SPI0_CSN1) | Yellow
+- S0    | PIN_21 (SPI0_MISO) | Green
 
 SSR (Oven)
-- GND PIN_6  (GND)
-- VDC PIN_35 (VCC)
+- GND   | PIN_6  (GND)       | Black
+- VDC   | PIN_35 (VCC)       | Red
 
 BTS7960 Driver (PWM)
-- GND PIN_34 (GND)
-- VDC PIN_2 (VCC +5V)
-- L_EN PIN_15
-- R_EN PIN_16
-- LPWM PIN_39 (GND)
-- RPWM PIN_32 (PWM0_M0)
-
+- GND   | PIN_34 (GND)       | Black
+- VDC   | PIN_2 (VCC +5V)    | Red
+- L_EN  | PIN_15             | Brown
+- R_EN  | PIN_16             | Orange
+- LPWM  | PIN_39 (GND)       | Yellow
+- RPWM  | PIN_32 (PWM0_M0)   | Green
