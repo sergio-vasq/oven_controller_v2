@@ -38,7 +38,7 @@ class GPIOButton:
                 cur2 = self._read()
                 if cur2 == cur:  # estado estable
                     # Detecta flanco de "presionado". Ajusta si tu botón es activo-bajo.
-                    pressed = (cur is False)  # si usas pull-up externo y botón a GND
+                    pressed = (cur is True)  # si usas pull-up externo y botón a GND
                     if pressed and self._on_press:
                         try:
                             self._on_press()

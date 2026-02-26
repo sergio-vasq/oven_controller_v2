@@ -27,3 +27,11 @@ BTS7960 Driver (PWM)
 - R_EN  | PIN_16             | Orange
 - LPWM  | PIN_39 (GND)       | Yellow
 - RPWM  | PIN_32 (PWM0_M0)   | Green
+
+Stop Button
+- VCC   | PIN_17 (+3.3V)     | Brown
+- Sign  | PIN_3              | White
+
+Vent
+- GND   | PIN_14 (GND)       | Purple
+- Sign  | PIN_7              | Gray

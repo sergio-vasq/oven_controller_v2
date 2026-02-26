@@ -35,15 +35,15 @@ motor:
 
 fan:
   gpio_chip: "/dev/gpiochip4"
-  gpio_line: 7
+  gpio_line: 6
   active_high: true
   default_on: false
 
 
 inputs:
   stop_button:
-    gpio_chip: "/dev/gpiochip1"
-    gpio_line: 23
+    gpio_chip: "/dev/gpiochip4"
+    gpio_line: 0
     pull: "up"        # "up" | "down" | "none"
     debounce_ms: 60   # rebote por sof
 
