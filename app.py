@@ -1,10 +1,10 @@
+# app.py
 import sys
 import yaml
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
-import subprocess
 
 from data.storage import Storage
 from services.controller import ControllerV2
@@ -15,31 +15,16 @@ from devices.thermocouple_max6675 import MAX6675
 from devices.ssr_timeproportion import SSRTimeProportion
 from devices.dc_motor_pwm import DCMotorPWM
 
+# NUEVOS
+from devices.fan_gpio import FanGPIO
+from devices.gpio_button import GPIOButton
+
 try:
     from barcode.scanner_serial import SerialBarcodeScanner
 except Exception:
     SerialBarcodeScanner = None
 
 CONFIG_PATH = Path("config.yaml")
-
-def _fix_pwm_polarity_on_start():
-    """
-    Intenta fijar la polaridad del PWM a 'normal' antes de abrir el PWM con python-periphery.
-    Si el driver no lo permite, no falla: seguimos con invert_pwm en YAML.
-    """
-    try:
-        # Si agregaste la regla en sudoers:
-        subprocess.run(
-            ["sudo", "/usr/local/bin/fix_pwm_polarity.sh"],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-    except Exception as e:
-        # No hacemos raise: continuamos. Tu lógica invert_pwm del YAML cubrirá el caso inversed.
-        print(f"[WARN] No fue posible aplicar polarity=normal por script: {e}")
-
-_fix_pwm_polarity_on_start()
 
 def save_tuned_gains_to_config(kp: float, ki: float, kd: float):
     """Persist tuned PID gains into config.yaml under the `pid` section."""
@@ -58,7 +43,6 @@ def save_tuned_gains_to_config(kp: float, ki: float, kd: float):
     except Exception as e:
         return False, f"Failed to save config: {e}"
 
-
 def _load_config():
     if CONFIG_PATH.exists():
         with open(CONFIG_PATH, "r") as f:
@@ -76,30 +60,33 @@ def _load_config():
             "appearance": "Dark",  # "Dark" | "Light" | "System"
             "theme": "blue",       # "blue" | "green" | "dark-blue"
             "geometry": "1100x720",
-        }
+        },
     }
-
 
 def main():
     cfg = _load_config()
     storage = Storage()
 
-    # --- Devices (all optional; guarded by try/except) ---
     tc = None
     ssr = None
     motor = None
+    fan = None           # NUEVO
+    stop_btn = None      # NUEVO
+
+    # --- Thermocouple
     try:
         th_cfg = cfg.get("thermocouple", {})
         if th_cfg:
             tc = MAX6675(
                 spi_device=th_cfg["spi_device"],
                 mode=int(th_cfg.get("spi_mode", 0)),
-                max_hz=int(th_cfg.get("spi_max_hz", 4_000_000)),
-                samples_avg=max(1, int(th_cfg.get("samples_avg", 1)))
+                max_hz=int(th_cfg.get("spi_max_hz", 4000000)),
+                samples_avg=max(1, int(th_cfg.get("samples_avg", 1))),
             )
     except Exception as e:
-        print(f"[WARN] MAX6675 not available: {e}")
+        print(f"[WARN] MAX6675 not available: {e}")  # [2](https://autozone1com-my.sharepoint.com/personal/sergio_vasquez_autozone_com/Documents/Microsoft%20Copilot%20Chat%20Files/main_window_ctk.py)
 
+    # --- SSR
     try:
         ssr_cfg = cfg.get("ssr", {})
         if ssr_cfg:
@@ -107,23 +94,36 @@ def main():
                 gpio_chip=ssr_cfg["gpio_chip"],
                 gpio_line=int(ssr_cfg["gpio_line"]),
                 active_high=bool(ssr_cfg.get("active_high", True)),
-                window_s=float(ssr_cfg.get("window_seconds", 1.0))
+                window_s=float(ssr_cfg.get("window_seconds", 1.0)),
             )
     except Exception as e:
-        print(f"[WARN] SSR GPIO not available: {e}")
+        print(f"[WARN] SSR GPIO not available: {e}")  # [2](https://autozone1com-my.sharepoint.com/personal/sergio_vasquez_autozone_com/Documents/Microsoft%20Copilot%20Chat%20Files/main_window_ctk.py)
 
+    # --- Motor
     try:
         motor_cfg = cfg.get("motor", {})
         if motor_cfg:
             motor = DCMotorPWM(motor_cfg)  # software/hardware via config
     except Exception as e:
-        print(f"[WARN] Motor PWM not available: {e}")
+        print(f"[WARN] Motor PWM not available: {e}")  # [2](https://autozone1com-my.sharepoint.com/personal/sergio_vasquez_autozone_com/Documents/Microsoft%20Copilot%20Chat%20Files/main_window_ctk.py)
 
-    # --- Root window (CustomTkinter) ---
+    # --- FAN (NUEVO)
+    try:
+        fan_cfg = cfg.get("fan", {})
+        if fan_cfg:
+            fan = FanGPIO(
+                gpio_chip=fan_cfg["gpio_chip"],
+                gpio_line=int(fan_cfg["gpio_line"]),
+                active_high=bool(fan_cfg.get("active_high", True)),
+                default_on=bool(fan_cfg.get("default_on", False)),
+            )
+    except Exception as e:
+        print(f"[WARN] Fan GPIO not available: {e}")
+
+    # --- UI setup
     ui_cfg = cfg.get("ui", {})
     ctk.set_appearance_mode(ui_cfg.get("appearance", "Dark"))
     ctk.set_default_color_theme(ui_cfg.get("theme", "blue"))
-
     root = ctk.CTk()
     root.title("Oven Controller CSC")
     geometry = ui_cfg.get("geometry", "1100x720")
@@ -132,52 +132,14 @@ def main():
     except Exception:
         root.geometry("1100x720")
 
-    # --- Main window (operator UI) ---
     win = MainWindow(root)
     appearance = ui_cfg.get("appearance", "Dark")
     win.apply_theme(appearance)
 
-    # --- Controller & dispatcher ---
+    # --- Controller
     pid_cfg = cfg.get("pid", {})
     saf_cfg = cfg.get("safety", {})
     at_cfg = cfg.get("autotune", {})
-
-    # single-instance ref for settings window
-    settings_win_ref = {"obj": None}
-
-    # small latch to not spam AT-DONE prints (optional)
-    _done_latch = {"printed": False}
-
-    def _ui_update_dispatch(data: dict):
-        """
-        Dispatch controller state to MainWindow and, if open, to SettingsWindow.
-        Also logs AT-DONE (if present) once.
-        """
-        # Update main window (plot, status)
-        win.handle_update(data)
-
-        # Update settings window (autotune pane) if open
-        sw = settings_win_ref.get("obj")
-        if sw is not None and sw.winfo_exists():
-            at_status = data.get("autotune", {})
-            try:
-                sw.update_autotune(at_status)
-            except Exception as e:
-                print("[WARN] SettingsWindow.update_autotune failed:", e)
-
-        # Optional: console log when autotune reports DONE (once)
-        at = data.get("autotune", {}) or {}
-        if at.get("status") == "done" and not _done_latch["printed"]:
-            _done_latch["printed"] = True
-            try:
-                print("[AT-DONE]",
-                      f"Tu={at.get('Tu')}",
-                      f"Ku={at.get('Ku')}",
-                      f"Kp={at.get('Kp')}",
-                      f"Ki={at.get('Ki')}",
-                      f"Kd={at.get('Kd')}")
-            except Exception:
-                pass
 
     controller = ControllerV2(
         thermocouple=tc,
@@ -191,18 +153,18 @@ def main():
         output_limits=tuple(pid_cfg.get("output_limits", [0.0, 100.0])),
         safety_cfg=saf_cfg,
         autotune_cfg=at_cfg,
-        # IMPORTANT: route updates through the dispatcher, not directly to MainWindow
-        on_update=lambda data: root.after(0, _ui_update_dispatch, data)
-    )  # Se integra con tu ControllerV2 existente. [1](https://autozone1com-my.sharepoint.com/personal/sergio_vasquez_autozone_com/Documents/Microsoft%20Copilot%20Chat%20Files/autotune.py)
+        on_update=lambda data: root.after(0, win.handle_update, data),
+        fan=fan,  # NUEVO
+    )
 
-    # --- Callbacks used by main ---
+    # --- Callbacks usados por main ---
     def apply_part(code: str):
         ok, part = controller.apply_part(code)
         if not ok:
             messagebox.showwarning("Not found", f"Part code '{code}' not found.")
         else:
-            win.load_setpoint(part["temp_setpoint"])  # reflect SP on status area
-            win.load_parts(storage.list_parts())      # refresh list
+            win.load_setpoint(part["temp_setpoint"])  # SP en status
+            win.load_parts(storage.list_parts())
 
     def ui_add(payload):
         try:
@@ -225,7 +187,9 @@ def main():
         except Exception as e:
             messagebox.showerror("Error", f"Failed to delete: {e}")
 
-    # Settings window creation (single-instance behavior)
+    # Settings window (single instance)
+    settings_win_ref = {"obj": None}
+
     def open_settings():
         if settings_win_ref["obj"] and settings_win_ref["obj"].winfo_exists():
             settings_win_ref["obj"].focus_set()
@@ -239,7 +203,6 @@ def main():
             on_set_sp=controller.set_setpoint,
             on_set_pid=controller.set_gains,
             on_enable=controller.enable_control,
-            # start returns (ok, msg); we only need bool to drive UI state
             on_autotune_start=lambda params: controller.autotune_start(params)[0],
             on_autotune_stop=controller.autotune_stop,
             on_autotune_apply=lambda: _apply_tuned_and_persist()
@@ -251,33 +214,52 @@ def main():
         if not ok:
             messagebox.showinfo("Auto-tune", "No tuned gains available yet.")
             return
-
-        # show in settings window if still open
         if settings_win_ref["obj"] and settings_win_ref["obj"].winfo_exists():
             settings_win_ref["obj"].show_tuned_gains(gains)
-
-        # persist to YAML
         saved, msg = save_tuned_gains_to_config(gains["Kp"], gains["Ki"], gains["Kd"])
         if not saved:
             messagebox.showwarning("Auto-tune", msg)
 
-        # console confirmation
-        try:
-            print("[AT-APPLY]", f"Kp={gains['Kp']:.4f} Ki={gains['Ki']:.4f} Kd={gains['Kd']:.4f}")
-        except Exception:
-            pass
+    # --- NUEVO: UI handlers para FAN y PARO
+    def ui_toggle_fan():
+        controller.toggle_fan()
 
-    # Bind and load data
+    def ui_emergency_stop():
+        # Si quieres enfriamiento asistido, cambia fan_on_after_stop=True
+        controller.emergency_stop(sp_zero=True, fan_on_after_stop=False)
+
+    # Enlazar callbacks (extendido)
     win.bind_callbacks(
         on_scan=apply_part,
         on_new=ui_add,
         on_edit=ui_update,
         on_delete=ui_delete,
         on_open_settings=open_settings,
+        on_toggle_fan=ui_toggle_fan,           # NUEVO
+        on_emergency_stop=ui_emergency_stop,   # NUEVO
     )
+
     win.load_parts(storage.list_parts())
 
-    # Optional serial barcode
+    # --- Botón físico de PARO (NUEVO)
+    try:
+        in_cfg = cfg.get("inputs", {}).get("stop_button", {})
+        if in_cfg:
+            def handle_stop_press():
+                controller.emergency_stop(sp_zero=True, fan_on_after_stop=False)
+                root.after(0, lambda: messagebox.showwarning("Paro", "Paro de emergencia activado."))
+
+            stop_btn = GPIOButton(
+                gpio_chip=in_cfg["gpio_chip"],
+                gpio_line=int(in_cfg["gpio_line"]),
+                pull=str(in_cfg.get("pull", "up")),
+                debounce_ms=int(in_cfg.get("debounce_ms", 60)),
+                on_press=handle_stop_press,
+            )
+    except Exception as e:
+        print(f"[WARN] Stop button not available: {e}")
+
+    # --- Barcode (si está habilitado)
     serial_scanner = None
     bc_cfg = cfg.get("barcode", {}).get("serial", {})
     if bc_cfg.get("enabled") and SerialBarcodeScanner is not None:
@@ -292,9 +274,9 @@ def main():
             )
             serial_scanner.start()
         except Exception as e:
-            print(f"[WARN] Barcode serial not available: {e}")
+            print(f"[WARN] Barcode serial not available: {e}")  # [2](https://autozone1com-my.sharepoint.com/personal/sergio_vasquez_autozone_com/Documents/Microsoft%20Copilot%20Chat%20Files/main_window_ctk.py)
 
-    # Start controller after UI is ready
+    # --- Start controller
     controller.start()
 
     def on_close():
@@ -322,11 +304,21 @@ def main():
                 tc.close()
         except Exception:
             pass
+        # NUEVO: cerrar Fan y botón de paro
+        try:
+            if fan is not None:
+                fan.close()
+        except Exception:
+            pass
+        try:
+            if stop_btn is not None:
+                stop_btn.close()
+        except Exception:
+            pass
         root.destroy()
 
     root.protocol("WM_DELETE_WINDOW", on_close)
     root.mainloop()
-
 
 if __name__ == "__main__":
     main()

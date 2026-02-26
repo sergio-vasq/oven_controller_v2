@@ -33,6 +33,20 @@ motor:
       gpio_line: 22
       active_high: true
 
+fan:
+  gpio_chip: "/dev/gpiochip4"
+  gpio_line: 7
+  active_high: true
+  default_on: false
+
+
+inputs:
+  stop_button:
+    gpio_chip: "/dev/gpiochip1"
+    gpio_line: 23
+    pull: "up"        # "up" | "down" | "none"
+    debounce_ms: 60   # rebote por sof
+
 
 pid:
   kp: 35.2589

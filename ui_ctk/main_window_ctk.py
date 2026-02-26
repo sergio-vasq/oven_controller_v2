@@ -1,3 +1,4 @@
+# ui_ctk/main_window_ctk.py
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -5,7 +6,6 @@ from collections import deque
 import time
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-
 
 class PartEditorDialog(ctk.CTkToplevel):
     def __init__(self, master, title, on_save, initial=None):
@@ -24,14 +24,11 @@ class PartEditorDialog(ctk.CTkToplevel):
         self.ent_notes = self._labeled_entry(frm, "Notas:", 3, width=280)
 
         btns = ctk.CTkFrame(frm)
-        btns.grid(row=4, column=0, columnspan=2, pady=(14, 0), sticky="e")
+        btns.grid(row=4, column=0, columnspan=2, pady=(14,0), sticky="e")
         btn_save = ctk.CTkButton(btns, text="Guardar", command=self._save, width=110)
-        btn_cancel = ctk.CTkButton(
-            btns, text="Cancelar", command=self.destroy, width=110
-        )
-
-        btn_cancel.pack(side="left", padx=(0, 12))
-        btn_save.pack(side="left", padx=(0, 0))
+        btn_cancel = ctk.CTkButton(btns, text="Cancelar", command=self.destroy, width=110)
+        btn_cancel.pack(side="left", padx=(0,12))
+        btn_save.pack(side="left", padx=(0,0))
 
         if initial:
             self.ent_code.insert(0, initial.get("code", ""))
@@ -53,9 +50,7 @@ class PartEditorDialog(ctk.CTkToplevel):
         self.grab_set()  # modal
 
     def _labeled_entry(self, parent, label, row, width=160):
-        ctk.CTkLabel(parent, text=label).grid(
-            row=row, column=0, sticky="w", pady=6, padx=(2, 8)
-        )
+        ctk.CTkLabel(parent, text=label).grid(row=row, column=0, sticky="w", pady=6, padx=(2,8))
         ent = ctk.CTkEntry(parent, width=width)
         ent.grid(row=row, column=1, sticky="w")
         return ent
@@ -72,11 +67,10 @@ class PartEditorDialog(ctk.CTkToplevel):
             speed = float(speed_text)
         except ValueError as e:
             messagebox.showwarning("Dato inválido", str(e))
-            return
-        if self.on_save:
-            self.on_save({"code": code, "temp": temp, "speed": speed, "notes": notes})
-        self.destroy()
-
+        else:
+            if self.on_save:
+                self.on_save({"code": code, "temp": temp, "speed": speed, "notes": notes})
+            self.destroy()
 
 class TemperaturePlot(ctk.CTkFrame):
     def __init__(self, master, window_seconds=600, redraw_ms=400):
@@ -84,16 +78,10 @@ class TemperaturePlot(ctk.CTkFrame):
         self.window_s = float(window_seconds)
         self.redraw_ms = int(redraw_ms)
         self.data = deque()
-
-        # << Nuevo: guarda estado de tema >>
         self._appearance = "Dark"
-
-        # Inicializa con tema oscuro por defecto (puedes cambiarlo luego con set_theme)
         self._init_figure_for_theme(self._appearance)
-
         self.canvas = FigureCanvasTkAgg(self.fig, master=self)
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
-
         self.after(self.redraw_ms, self._redraw_timer)
 
     def _init_figure_for_theme(self, appearance: str):
@@ -101,20 +89,14 @@ class TemperaturePlot(ctk.CTkFrame):
         bg = "#2b2b2b" if dark else "#ffffff"
         fg = "#ffffff" if dark else "#000000"
         grid = "#666666" if dark else "#cccccc"
-        pv_c = "#4aa3ff" if dark else "#1f77b4"  # serie PV
-        sp_c = "#ffae42" if dark else "#ff7f0e"  # serie SP
+        pv_c = "#4aa3ff" if dark else "#1f77b4"
+        sp_c = "#ffae42" if dark else "#ff7f0e"
 
         if not hasattr(self, "fig"):
-            from matplotlib.figure import Figure
-
             self.fig = Figure(figsize=(6, 2.8), dpi=100)
             self.ax = self.fig.add_subplot(111)
-            (self.line_pv,) = self.ax.plot(
-                [], [], label="PV", color=pv_c, linewidth=1.6
-            )
-            (self.line_sp,) = self.ax.plot(
-                [], [], label="SP", color=sp_c, linewidth=1.3
-            )
+            (self.line_pv,) = self.ax.plot([], [], label="PV", color=pv_c, linewidth=1.6)
+            (self.line_sp,) = self.ax.plot([], [], label="SP", color=sp_c, linewidth=1.3)
         else:
             self.line_pv.set_color(pv_c)
             self.line_sp.set_color(sp_c)
@@ -128,7 +110,6 @@ class TemperaturePlot(ctk.CTkFrame):
         for spine in self.ax.spines.values():
             spine.set_color(fg)
         self.ax.grid(True, color=grid, alpha=0.4)
-
         leg = self.ax.legend(loc="upper right")
         for text in leg.get_texts():
             text.set_color(fg)
@@ -151,25 +132,21 @@ class TemperaturePlot(ctk.CTkFrame):
         self._draw_plot()
         self.after(self.redraw_ms, self._redraw_timer)
 
-    # Renamed to not collide with CTkFrame._draw(...)
     def _draw_plot(self):
         if not self.data:
             return
         t0 = self.data[0][0]
         xs = [(t - t0) / 60.0 for (t, _pv, _sp) in self.data]
-
         pv_series, sp_series = [], []
         last_pv, last_sp = None, None
-        for _t, pv, sp in self.data:
+        for (_t, pv, sp) in self.data:
             last_pv = pv if pv is not None else last_pv
             last_sp = sp if sp is not None else last_sp
             pv_series.append(last_pv if last_pv is not None else 0.0)
             sp_series.append(last_sp if last_sp is not None else 0.0)
-
         self.line_pv.set_data(xs, pv_series)
         self.line_sp.set_data(xs, sp_series)
 
-        # Y limits
         if pv_series:
             ymin = min(pv_series + sp_series) - 5
             ymax = max(pv_series + sp_series) + 5
@@ -178,17 +155,15 @@ class TemperaturePlot(ctk.CTkFrame):
                 ymax += 1
             self.ax.set_ylim(ymin, ymax)
 
-        # X limits (fix singular xlim warning)
         if xs:
             xmax = max(xs)
             if xmax <= 0:
-                xmax = 1.0  # ensure min width
+                xmax = 1.0
             self.ax.set_xlim(0, xmax)
         else:
             self.ax.set_xlim(0, 10)
 
         self.canvas.draw_idle()
-
 
 class MainWindow(ctk.CTkFrame):
     def __init__(self, master):
@@ -200,13 +175,11 @@ class MainWindow(ctk.CTkFrame):
         # ----- Dark style for ttk.Treeview
         style = ttk.Style()
         try:
-            style.theme_use("default")
+            style.theme_use('default')
         except Exception:
             pass
-
         font_rows = ("Segoe UI", 12)
         font_head = ("Segoe UI", 12, "bold")
-
         style.configure(
             "Dark.Treeview",
             background="black",
@@ -218,7 +191,7 @@ class MainWindow(ctk.CTkFrame):
         style.map(
             "Dark.Treeview",
             background=[("selected", "#094771")],
-            foreground=[("selected", "white")],
+            foreground=[("selected", "white")]
         )
         style.configure(
             "Dark.Treeview.Heading",
@@ -230,128 +203,111 @@ class MainWindow(ctk.CTkFrame):
 
         # ----- Toolbar
         bar = ctk.CTkFrame(self)
-        bar.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 6))
+        bar.grid(row=0, column=0, sticky="ew", padx=10, pady=(10,6))
         bar.grid_columnconfigure(1, weight=1)
-        ctk.CTkLabel(
-            bar, text="Oven Controller CSC", font=ctk.CTkFont(size=18, weight="bold")
-        ).grid(row=0, column=0, sticky="w")
-        self.btn_settings = ctk.CTkButton(
-            bar, text="Configuración", command=self._open_settings
+
+        ctk.CTkLabel(bar, text="Oven Controller CSC", font=ctk.CTkFont(size=18, weight="bold")).grid(row=0, column=0, sticky="w")
+
+        # Botón de Configuración
+        self.btn_settings = ctk.CTkButton(bar, text="Configuración", command=self._open_settings)
+        self.btn_settings.grid(row=0, column=2, sticky="e", padx=(8,0))
+
+        # NUEVOS: Ventilador y PARO
+        self.btn_fan = ctk.CTkButton(bar, text="Ventilador: OFF", command=self._on_toggle_fan)
+        self.btn_fan.grid(row=0, column=3, sticky="e", padx=(8,0))
+
+        self.btn_stop = ctk.CTkButton(
+            bar, text="PARO", fg_color="#b3261e", hover_color="#8c1b15",
+            text_color="white", command=self._on_emergency_stop, width=80
         )
-        self.btn_settings.grid(row=0, column=2, sticky="e", padx=(8, 0))
+        self.btn_stop.grid(row=0, column=4, sticky="e", padx=(8,0))
 
         # ----- Status
         status = ctk.CTkFrame(self)
         status.grid(row=1, column=0, sticky="ew", padx=10, pady=6)
         for i in range(6):
             status.grid_columnconfigure(i, weight=1)
+
         self.lbl_sp = ctk.CTkLabel(status, text="SP: — °C")
         self.lbl_pv = ctk.CTkLabel(status, text="PV: — °C")
         self.lbl_u = ctk.CTkLabel(status, text="Calentador: — %")
         self.lbl_motor = ctk.CTkLabel(status, text="Motor: — %")
         self.lbl_mode = ctk.CTkLabel(status, text="Modo: DESHABILITADO")
         self.lbl_alarm = ctk.CTkLabel(status, text="Alarma: —")
-        for i, w in enumerate(
-            (
-                self.lbl_sp,
-                self.lbl_pv,
-                self.lbl_u,
-                self.lbl_motor,
-                self.lbl_mode,
-                self.lbl_alarm,
-            )
-        ):
+        for i, w in enumerate((self.lbl_sp, self.lbl_pv, self.lbl_u, self.lbl_motor, self.lbl_mode, self.lbl_alarm)):
             w.grid(row=0, column=i, padx=8, pady=6, sticky="w")
 
         # ----- Scan
         scan = ctk.CTkFrame(self)
-        scan.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 6))
+        scan.grid(row=2, column=0, sticky="ew", padx=10, pady=(0,6))
         scan.grid_columnconfigure(1, weight=1)
-        ctk.CTkLabel(scan, text="Escanear / Capturar código de parte").grid(
-            row=0, column=0, sticky="w", padx=(0, 8)
-        )
+        ctk.CTkLabel(scan, text="Escanear / Capturar código de parte").grid(row=0, column=0, sticky="w", padx=(0,8))
         self.txt_scan = ctk.CTkEntry(scan)
         self.txt_scan.grid(row=0, column=1, sticky="ew")
         self.txt_scan.bind("<Return>", lambda e: self._do_scan())
         self._enable_global_scanner_capture(root=self.master)
 
         # ----- Plot
-        self.plot = TemperaturePlot(self, window_seconds=600, redraw_ms=400)  # 10 min
+        self.plot = TemperaturePlot(self, window_seconds=600, redraw_ms=400)
         self.plot.grid(row=3, column=0, sticky="nsew", padx=10, pady=6)
 
         # ----- Library + actions
         lib = ctk.CTkFrame(self)
-        lib.grid(row=4, column=0, sticky="nsew", padx=10, pady=(0, 10))
+        lib.grid(row=4, column=0, sticky="nsew", padx=10, pady=(0,10))
         lib.grid_rowconfigure(0, weight=1)
         lib.grid_columnconfigure(0, weight=1)
 
-        self.table = ttk.Treeview(
-            lib,
-            columns=("code", "temp", "speed", "notes"),
-            show="headings",
-            height=8,
-            style="Dark.Treeview",
-        )
-        for c, txt, w in (
-            ("code", "Código", 220),
-            ("temp", "Temp (°C)", 140),
-            ("speed", "Velocidad (%)", 160),
-            ("notes", "Notas", 500),
-        ):
+        self.table = ttk.Treeview(lib, columns=("code","temp","speed","notes"), show="headings", height=8, style="Dark.Treeview")
+        for c, txt, w in (("code","Código",220),("temp","Temp (°C)",140),("speed","Velocidad (%)",160),("notes","Notas",500)):
             self.table.heading(c, text=txt)
             self.table.column(c, width=w, anchor="w")
         self.table.grid(row=0, column=0, sticky="nsew")
 
-        # Scrollbar
         yscroll = ttk.Scrollbar(lib, orient="vertical", command=self.table.yview)
         self.table.configure(yscrollcommand=yscroll.set)
         yscroll.grid(row=0, column=1, sticky="ns")
 
-        # Buttons
         btns = ctk.CTkFrame(lib)
-        btns.grid(row=1, column=0, sticky="w", pady=(8, 0))
-
+        btns.grid(row=1, column=0, sticky="w", pady=(8,0))
         self.btn_new = ctk.CTkButton(btns, text="Nuevo", command=self._on_new)
-        self.btn_edit = ctk.CTkButton(
-            btns, text="Editar", command=self._on_edit, state="disabled"
-        )
-        self.btn_delete = ctk.CTkButton(
-            btns, text="Eliminar", command=self._on_delete, state="disabled"
-        )
-
+        self.btn_edit = ctk.CTkButton(btns, text="Editar", command=self._on_edit, state="disabled")
+        self.btn_delete = ctk.CTkButton(btns, text="Eliminar", command=self._on_delete, state="disabled")
         self.btn_new.pack(side="left", padx=(0, 8))
         self.btn_edit.pack(side="left", padx=(0, 8))
         self.btn_delete.pack(side="left", padx=(0, 0))
 
-        # Enable/disable edit/delete depending on selection
         self.table.bind("<<TreeviewSelect>>", lambda e: self._toggle_actions())
 
-        # Expand
-        self.grid_rowconfigure(3, weight=1)  # plot
-        self.grid_rowconfigure(4, weight=1)  # table
+        self.grid_rowconfigure(3, weight=1) # plot
+        self.grid_rowconfigure(4, weight=1) # table
         self.grid_columnconfigure(0, weight=1)
 
-        # External callbacks
+        # External callbacks (incluye nuevos)
         self.cb_on_scan = None
         self.cb_on_new = None
         self.cb_on_edit = None
         self.cb_on_delete = None
         self.cb_on_open_settings = None
+        self.cb_on_toggle_fan = None
+        self.cb_on_emergency_stop = None
 
         # Shortcuts
         self.master.bind("<Control-n>", lambda e: self._on_new())
         self.master.bind("<Control-e>", lambda e: self._on_edit())
         self.master.bind("<Delete>", lambda e: self._on_delete())
 
-    # Bind callbacks (keep English names for app.py compatibility)
-    def bind_callbacks(self, on_scan, on_new, on_edit, on_delete, on_open_settings):
+    # ----- Binding de callbacks (EXTENDIDO)
+    def bind_callbacks(self, on_scan, on_new, on_edit, on_delete, on_open_settings,
+                       on_toggle_fan=None, on_emergency_stop=None):
         self.cb_on_scan = on_scan
         self.cb_on_new = on_new
         self.cb_on_edit = on_edit
         self.cb_on_delete = on_delete
         self.cb_on_open_settings = on_open_settings
+        self.cb_on_toggle_fan = on_toggle_fan
+        self.cb_on_emergency_stop = on_emergency_stop
 
-    # Controller update funnel
+    # ----- Funnel de actualizaciones
     def handle_update(self, data: dict):
         self.update_status(data)
         sp = data.get("sp", None)
@@ -359,48 +315,41 @@ class MainWindow(ctk.CTkFrame):
         if pv is not None or sp is not None:
             self.plot.append(pv, sp)
 
-    # UI helpers
+    # ----- UI helpers
     def update_status(self, data: dict):
         sp = data.get("sp")
         pv = data.get("pv")
-        u = data.get("u")
-        mot = data.get("motor")
-        ena = data.get("enabled")
+        u = data.get("u", 0.0)
+        mot = data.get("motor", 0.0)
+        ena = data.get("enabled", False)
         alarm = data.get("alarm")
+        fan = data.get("fan", False)
+
         self.lbl_sp.configure(text=f"SP: {sp:.1f} °C" if sp is not None else "SP: — °C")
         self.lbl_pv.configure(text=f"PV: {pv:.1f} °C" if pv is not None else "PV: — °C")
         self.lbl_u.configure(text=f"Calentador: {u:.1f} %")
         self.lbl_motor.configure(text=f"Motor: {mot:.1f} %")
-        self.lbl_mode.configure(
-            text=f"Modo: {'HABILITADO' if ena else 'DESHABILITADO'}"
-        )
+        self.lbl_mode.configure(text=f"Modo: {'HABILITADO' if ena else 'DESHABILITADO'}")
         self.lbl_alarm.configure(text=f"Alarma: {alarm if alarm else '—'}")
+        # Reflejar estado de ventilador en botón
+        self.btn_fan.configure(text=f"Ventilador: {'ON' if fan else 'OFF'}")
 
     def load_parts(self, parts):
         for iid in self.table.get_children():
             self.table.delete(iid)
         for p in parts:
-            self.table.insert(
-                "",
-                "end",
-                values=(
-                    p["code"],
-                    p["temp_setpoint"],
-                    p["conveyor_speed"],
-                    p.get("notes", ""),
-                ),
-            )
+            self.table.insert('', 'end', values=(p['code'], p['temp_setpoint'], p['conveyor_speed'], p.get('notes','')))
         self._toggle_actions()
 
     def load_setpoint(self, sp):
         self.lbl_sp.configure(text=f"SP: {float(sp):.1f} °C")
 
-    # Events
+    # ----- Eventos
     def _do_scan(self):
         code = self.txt_scan.get().strip()
         if code and self.cb_on_scan:
             self.cb_on_scan(code)
-            self.txt_scan.delete(0, tk.END)
+        self.txt_scan.delete(0, tk.END)
 
     def _get_selected_row(self):
         sel = self.table.selection()
@@ -426,7 +375,6 @@ class MainWindow(ctk.CTkFrame):
         def save(payload):
             if self.cb_on_new:
                 self.cb_on_new(payload)
-
         PartEditorDialog(self, "Nueva parte", on_save=save, initial=None)
 
     def _on_edit(self):
@@ -434,14 +382,10 @@ class MainWindow(ctk.CTkFrame):
         if not row:
             messagebox.showinfo("Editar", "Selecciona una parte primero.")
             return
-
         def save(payload):
             if self.cb_on_edit:
                 self.cb_on_edit(payload)
-
-        PartEditorDialog(
-            self, f"Editar parte — {row['code']}", on_save=save, initial=row
-        )
+        PartEditorDialog(self, f"Editar parte — {row['code']}", on_save=save, initial=row)
 
     def _on_delete(self):
         row = self._get_selected_row()
@@ -463,20 +407,16 @@ class MainWindow(ctk.CTkFrame):
         self.btn_delete.configure(state=state)
 
     def apply_treeview_style(self, appearance: str):
-        """Aplica estilos al Treeview en función del tema."""
         dark = str(appearance).lower().startswith("dark")
         style = ttk.Style()
-
         tv_style_name = "Dark.Treeview" if dark else "Light.Treeview"
         tv_head_name = "Dark.Treeview.Heading" if dark else "Light.Treeview.Heading"
-
         bg = "black" if dark else "white"
         fg = "white" if dark else "black"
         sel_bg = "#094771" if dark else "#cce5ff"
         sel_fg = "white" if dark else "black"
         head_bg = "#111111" if dark else "#f0f0f0"
         head_fg = "white" if dark else "black"
-
         font_rows = ("Segoe UI", 12)
         font_head = ("Segoe UI", 12, "bold")
 
@@ -500,13 +440,13 @@ class MainWindow(ctk.CTkFrame):
             relief="flat",
             font=font_head,
         )
-
         self.table.configure(style=tv_style_name)
 
     def apply_theme(self, appearance: str):
         self.plot.set_theme(appearance)
         self.apply_treeview_style(appearance)
 
+    # Captura global para pistola/teclado
     def _enable_global_scanner_capture(self, root):
         root.bind_all("<Key>", self._global_key_reroute, add="+")
         self._kb_capture_enabled = True
@@ -514,12 +454,10 @@ class MainWindow(ctk.CTkFrame):
     def _is_textual_widget(self, widget):
         import tkinter as tk
         from tkinter import ttk
-
         text_like = (tk.Entry, tk.Text, ttk.Entry)
         try:
             import customtkinter as ctk
-
-            text_like = text_like + (ctk.CTkEntry,)
+            text_like = text_like + (ctk.CTkEntry, )
         except Exception:
             pass
         return isinstance(widget, text_like)
@@ -527,70 +465,44 @@ class MainWindow(ctk.CTkFrame):
     def _keysym_to_char(self, event):
         if event.char and event.char.isprintable():
             return event.char
-
         ks = event.keysym
         keypad_map = {
-            "KP_0": "0",
-            "KP_1": "1",
-            "KP_2": "2",
-            "KP_3": "3",
-            "KP_4": "4",
-            "KP_5": "5",
-            "KP_6": "6",
-            "KP_7": "7",
-            "KP_8": "8",
-            "KP_9": "9",
-            "KP_Decimal": ".",
-            "KP_Separator": ",",
-            "KP_Multiply": "*",
-            "KP_Divide": "/",
-            "KP_Add": "+",
-            "KP_Subtract": "-",
-            "KP_Enter": "\r",
-            "KP_Space": " ",
+            "KP_0":"0","KP_1":"1","KP_2":"2","KP_3":"3","KP_4":"4",
+            "KP_5":"5","KP_6":"6","KP_7":"7","KP_8":"8","KP_9":"9",
+            "KP_Decimal":".","KP_Separator":",","KP_Multiply":"*","KP_Divide":"/",
+            "KP_Add":"+","KP_Subtract":"-","KP_Enter":"\r","KP_Space":" ",
         }
         return keypad_map.get(ks, "")
 
     def _global_key_reroute(self, event):
-        if (
-            (event.state & 0x4)
-            or (event.state & 0x200000)
-            or event.keysym
-            in (
-                "Shift_L",
-                "Shift_R",
-                "Control_L",
-                "Control_R",
-                "Alt_L",
-                "Alt_R",
-                "Meta_L",
-                "Meta_R",
-            )
+        if (event.state & 0x4) or (event.state & 0x200000) or event.keysym in (
+            "Shift_L","Shift_R","Control_L","Control_R","Alt_L","Alt_R","Meta_L","Meta_R"
         ):
-            return  # deja pasar atajos
-
+            return
         w = event.widget
         if self._is_textual_widget(w):
-            return  # deja que escriba donde está
-
+            return
         if event.keysym in ("BackSpace",):
             self.txt_scan.focus_set()
-            # Reenvía el BackSpace al Entry
             self.txt_scan.event_generate("<BackSpace>")
             return "break"
-
         if event.keysym in ("Return", "KP_Enter"):
-            # Ejecuta tu scan
             self._do_scan()
             return "break"
-
         ch = (event.char or "").strip()
         if not ch:
             ch = self._keysym_to_char(event)
-
         if ch and ch.isprintable():
             self.txt_scan.focus_set()
             self.txt_scan.insert("end", ch)
             return "break"
-
         return
+
+    # ---- NUEVOS handlers de botones de barra
+    def _on_toggle_fan(self):
+        if self.cb_on_toggle_fan:
+            self.cb_on_toggle_fan()
+
+    def _on_emergency_stop(self):
+        if self.cb_on_emergency_stop:
+            self.cb_on_emergency_stop()

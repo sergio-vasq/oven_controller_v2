@@ -1,26 +1,51 @@
+# services/controller.py
 import threading, time
 from typing import Optional, Callable, Tuple
 from services.pid_algo import PID
 from services.autotune import RelayAutoTuner
 
-
 class ControllerV2:
-    def __init__(self, thermocouple, heater, motor, storage, kp: float, ki: float, kd: float, sample_s: float, output_limits: Tuple[float, float], safety_cfg: dict, autotune_cfg: dict = None, on_update: Optional[Callable[[dict], None]] = None):
+    def __init__(
+        self,
+        thermocouple,
+        heater,
+        motor,
+        storage,
+        kp: float,
+        ki: float,
+        kd: float,
+        sample_s: float,
+        output_limits: Tuple[float, float],
+        safety_cfg: dict,
+        autotune_cfg: dict = None,
+        on_update: Optional[Callable[[dict], None]] = None,
+        fan=None,   # <-- NUEVO: ventilador
+    ):
         self.tc = thermocouple
         self.heater = heater
         self.motor = motor
+        self.fan = fan
         self.storage = storage
         self.on_update = on_update
-        self.pid = PID(kp, ki, kd, setpoint=25.0, sample_time=sample_s, output_limits=output_limits)
+
+        self.pid = PID(
+            kp, ki, kd,
+            setpoint=25.0,
+            sample_time=sample_s,
+            output_limits=output_limits
+        )
         self.enabled = False
         self.sample_s = sample_s
+
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._loop, daemon=True)
+
         self.safety = {
             "absolute_max_c": float(safety_cfg.get("absolute_max_c", 350.0)),
             "sensor_fault_action": safety_cfg.get("sensor_fault_action", "cut"),
             "max_over_sp_c": float(safety_cfg.get("max_over_sp_c", 40.0)),
         }
+
         self._status = {
             "pv": None,
             "sp": self.pid.setpoint,
@@ -29,12 +54,39 @@ class ControllerV2:
             "motor": 0.0,
             "alarm": None,
             "autotune": {"active": False},
+            "fan": bool(self._read_fan_state()),
         }
+
         self.autotune = None
         self.autotune_cfg = autotune_cfg or {}
         if bool(self.autotune_cfg.get("enabled", False)):
             self._init_autotune()
 
+    # ---------------------
+    # Helpers de ventilador
+    # ---------------------
+    def _read_fan_state(self) -> bool:
+        try:
+            if self.fan is None:
+                return False
+            return bool(self.fan.is_on())
+        except Exception:
+            return False
+
+    def set_fan(self, on: bool):
+        self._status["fan"] = bool(on)
+        if self.fan is not None:
+            try:
+                self.fan.set_on(self._status["fan"])
+            except Exception:
+                pass
+
+    def toggle_fan(self):
+        self.set_fan(not self._status.get("fan", False))
+
+    # ---------------------
+    # Auto-tune
+    # ---------------------
     def _init_autotune(self, params=None):
         cfg = dict(self.autotune_cfg)
         if params:
@@ -69,6 +121,36 @@ class ControllerV2:
             self.autotune.rule,
         )
 
+    def autotune_start(self, params: dict):
+        if self.tc is None or self.heater is None:
+            return False, "Thermocouple/SSR not available."
+        self._init_autotune(params or {})
+        # >>> MANTENEMOS TUS PRINTS <<<
+        print("[AT] Autotune started with params:", params)
+        return True, "Auto-tune started"
+
+    def autotune_stop(self):
+        self.autotune = None
+        self._status["autotune"] = {"active": False}
+        if self.heater is not None:
+            try:
+                self.heater.set_duty(0.0)
+            except Exception:
+                pass
+
+    def autotune_apply(self):
+        auto = self._status.get("autotune", {})
+        if not auto.get("done"):
+            return False, None
+        kp, ki, kd = auto.get("Kp"), auto.get("Ki"), auto.get("Kd")
+        if kp is None:
+            return False, None
+        self.set_gains(kp, ki, kd)
+        return True, {"Kp": kp, "Ki": ki, "Kd": kd}
+
+    # ---------------------
+    # Control básico
+    # ---------------------
     def start(self):
         self._stop.clear()
         if not self._thread.is_alive():
@@ -117,44 +199,58 @@ class ControllerV2:
         self.set_motor_speed(float(part["conveyor_speed"]))
         return True, part
 
-    def autotune_start(self, params: dict):
-        if self.tc is None or self.heater is None:
-            return False, "Thermocouple/SSR not available."
-        self._init_autotune(params or {})
-        print("[AT] Autotune started with params:", params)  # <-- ayuda visual
-        return True, "Auto-tune started"
+    # ---------------------
+    # Paro de emergencia
+    # ---------------------
+    def emergency_stop(self, sp_zero: bool = True, fan_on_after_stop: bool = False):
+        """
+        Corta salidas y deja el sistema en estado seguro.
+        fan_on_after_stop=True si quieres enfriamiento asistido.
+        """
+        # deshabilita el lazo
+        self.enable_control(False)
 
-    def autotune_stop(self):
-        self.autotune = None
-        self._status["autotune"] = {"active": False}
-        if self.heater is not None:
-            try:
+        # heater a 0
+        try:
+            if self.heater is not None:
                 self.heater.set_duty(0.0)
-            except Exception:
-                pass
+        except Exception:
+            pass
 
-    def autotune_apply(self):
-        auto = self._status.get("autotune", {})
-        if not auto.get("done"):
-            return False, None
-        kp, ki, kd = auto.get("Kp"), auto.get("Ki"), auto.get("Kd")
-        if kp is None:
-            return False, None
-        self.set_gains(kp, ki, kd)
-        return True, {"Kp": kp, "Ki": ki, "Kd": kd}
+        # motor a 0
+        self.set_motor_speed(0.0)
 
+        # ventilador según preferencia
+        self.set_fan(bool(fan_on_after_stop))
+
+        # setpoint y PID
+        if sp_zero:
+            self.set_setpoint(0.0)
+        self.pid.reset()
+
+        # alarma
+        self._status["alarm"] = "EMERGENCY_STOP"
+
+    # ---------------------
+    # Laço principal
+    # ---------------------
     def _loop(self):
         while not self._stop.is_set():
             now = time.monotonic()
             pv = None
             alarm = None
+
+            # Adquirir PV
             try:
                 if self.tc is not None:
                     pv = self.tc.read_c()
             except Exception:
                 pv = None
+
             self._status["pv"] = pv
             cut = False
+
+            # Seguridad
             if pv is None:
                 if self.safety.get("sensor_fault_action") == "cut":
                     cut = True
@@ -166,25 +262,14 @@ class ControllerV2:
                 elif pv - self.pid.setpoint > self.safety.get("max_over_sp_c", 40.0):
                     cut = True
                     alarm = "OVER_SP"
+
             u = self._status.get("u", 0.0)
             auto_status = self._status.get("autotune", {"active": False})
+
+            # Auto-tuning
             if self.autotune and not cut and pv is not None:
                 prog = self.autotune.update(pv, now)
                 u = self.autotune.output()
-                print(f"[AT] pv={pv:.2f} sp={self.pid.setpoint:.2f} hyst={self.autotune.hyst:.2f} on={self.autotune._on} cycles={self.autotune._cycles_count} status={prog.get('status')} u={u:.1f}%")
-                print(
-                    "[AT]",
-                    "cycles=",
-                    self.autotune._cycles_count,
-                    "periods=",
-                    len(self.autotune._periods),
-                    "usable=",
-                    max(0, self.autotune._cycles_count - self.autotune.settle_cycles),
-                    "settle=",
-                    self.autotune.settle_cycles,
-                    "target=",
-                    self.autotune.cycles_target,
-                )
                 if self.heater is not None:
                     try:
                         self.heater.set_duty(u)
@@ -192,42 +277,41 @@ class ControllerV2:
                         pass
                 auto_status.update(prog)
                 if prog.get("status") == "done":
-                    print(
-                        "[AT-DONE]",
-                        f"Tu={prog.get('Tu')}",
-                        f"Ku={prog.get('Ku')}",
-                        f"Kp={prog.get('Kp')}",
-                        f"Ki={prog.get('Ki')}",
-                        f"Kd={prog.get('Kd')}",
-                    )
                     auto_status["active"] = False
                     auto_status["done"] = True
                     self.autotune = None
             else:
                 auto_status = {"active": False} if not self.autotune else auto_status
-                if self.enabled and not cut and pv is not None:
-                    out = self.pid.compute(pv, now)
-                    if out is not None:
-                        u = out
-                        if self.heater is not None:
-                            try:
-                                self.heater.set_duty(u)
-                            except Exception:
-                                pass
-                else:
+
+            # PID normal
+            if self.enabled and not cut and pv is not None:
+                out = self.pid.compute(pv, now)
+                if out is not None:
+                    u = out
                     if self.heater is not None:
                         try:
-                            self.heater.set_duty(0.0)
+                            self.heater.set_duty(u)
                         except Exception:
                             pass
-                    self.pid.reset()
-                    u = 0.0
+            else:
+                if self.heater is not None:
+                    try:
+                        self.heater.set_duty(0.0)
+                    except Exception:
+                        pass
+                self.pid.reset()
+                u = 0.0
+
+            # Publicar estado
             self._status["u"] = u
-            self._status["alarm"] = alarm
+            self._status["alarm"] = alarm or self._status.get("alarm")
             self._status["autotune"] = auto_status
+            self._status["fan"] = self._read_fan_state()
+
             if self.on_update:
                 try:
                     self.on_update(dict(self._status))
                 except Exception:
                     pass
+
             self._stop.wait(self.pid.sample_time)
