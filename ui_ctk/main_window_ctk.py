@@ -47,7 +47,7 @@ class PartEditorDialog(ctk.CTkToplevel):
 
         self.bind("<Return>", lambda e: self._save())
         self.bind("<Escape>", lambda e: self.destroy())
-        self.grab_set()  # modal
+        self.grab_set()
 
     def _labeled_entry(self, parent, label, row, width=160):
         ctk.CTkLabel(parent, text=label).grid(row=row, column=0, sticky="w", pady=6, padx=(2,8))
@@ -172,7 +172,7 @@ class MainWindow(ctk.CTkFrame):
         self.master.rowconfigure(0, weight=1)
         self.master.columnconfigure(0, weight=1)
 
-        # ----- Dark style for ttk.Treeview
+        # ----- Estilo Treeview (oscuro)
         style = ttk.Style()
         try:
             style.theme_use('default')
@@ -212,29 +212,35 @@ class MainWindow(ctk.CTkFrame):
         self.btn_settings = ctk.CTkButton(bar, text="Configuración", command=self._open_settings)
         self.btn_settings.grid(row=0, column=2, sticky="e", padx=(8,0))
 
-        # NUEVOS: Ventilador y PARO
+        # NUEVO: Botón PID Enable/Disable
+        self.btn_enable = ctk.CTkButton(bar, text="PID: HABILITAR", command=self._on_toggle_enable, width=120)
+        self.btn_enable.grid(row=0, column=3, sticky="e", padx=(8,0))
+
+        # Botón Ventilador y PARO (ya los tenías / añadidos antes)
         self.btn_fan = ctk.CTkButton(bar, text="Ventilador: OFF", command=self._on_toggle_fan)
-        self.btn_fan.grid(row=0, column=3, sticky="e", padx=(8,0))
+        self.btn_fan.grid(row=0, column=4, sticky="e", padx=(8,0))
 
         self.btn_stop = ctk.CTkButton(
             bar, text="PARO", fg_color="#b3261e", hover_color="#8c1b15",
             text_color="white", command=self._on_emergency_stop, width=80
         )
-        self.btn_stop.grid(row=0, column=4, sticky="e", padx=(8,0))
+        self.btn_stop.grid(row=0, column=5, sticky="e", padx=(8,0))
 
-        # ----- Status
+        # ----- Status (sección superior)
         status = ctk.CTkFrame(self)
         status.grid(row=1, column=0, sticky="ew", padx=10, pady=6)
-        for i in range(6):
+        for i in range(7):  # 7 columnas ahora
             status.grid_columnconfigure(i, weight=1)
 
+        self.lbl_part = ctk.CTkLabel(status, text="Parte: —")
         self.lbl_sp = ctk.CTkLabel(status, text="SP: — °C")
         self.lbl_pv = ctk.CTkLabel(status, text="PV: — °C")
         self.lbl_u = ctk.CTkLabel(status, text="Calentador: — %")
         self.lbl_motor = ctk.CTkLabel(status, text="Motor: — %")
         self.lbl_mode = ctk.CTkLabel(status, text="Modo: DESHABILITADO")
         self.lbl_alarm = ctk.CTkLabel(status, text="Alarma: —")
-        for i, w in enumerate((self.lbl_sp, self.lbl_pv, self.lbl_u, self.lbl_motor, self.lbl_mode, self.lbl_alarm)):
+
+        for i, w in enumerate((self.lbl_part, self.lbl_sp, self.lbl_pv, self.lbl_u, self.lbl_motor, self.lbl_mode, self.lbl_alarm )):
             w.grid(row=0, column=i, padx=8, pady=6, sticky="w")
 
         # ----- Scan
@@ -278,8 +284,8 @@ class MainWindow(ctk.CTkFrame):
 
         self.table.bind("<<TreeviewSelect>>", lambda e: self._toggle_actions())
 
-        self.grid_rowconfigure(3, weight=1) # plot
-        self.grid_rowconfigure(4, weight=1) # table
+        self.grid_rowconfigure(3, weight=1)
+        self.grid_rowconfigure(4, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
         # External callbacks (incluye nuevos)
@@ -290,15 +296,16 @@ class MainWindow(ctk.CTkFrame):
         self.cb_on_open_settings = None
         self.cb_on_toggle_fan = None
         self.cb_on_emergency_stop = None
+        self.cb_on_toggle_enable = None   # <-- NUEVO
 
         # Shortcuts
         self.master.bind("<Control-n>", lambda e: self._on_new())
         self.master.bind("<Control-e>", lambda e: self._on_edit())
         self.master.bind("<Delete>", lambda e: self._on_delete())
 
-    # ----- Binding de callbacks (EXTENDIDO)
+    # ----- Bind extendido
     def bind_callbacks(self, on_scan, on_new, on_edit, on_delete, on_open_settings,
-                       on_toggle_fan=None, on_emergency_stop=None):
+                       on_toggle_fan=None, on_emergency_stop=None, on_toggle_enable=None):
         self.cb_on_scan = on_scan
         self.cb_on_new = on_new
         self.cb_on_edit = on_edit
@@ -306,6 +313,7 @@ class MainWindow(ctk.CTkFrame):
         self.cb_on_open_settings = on_open_settings
         self.cb_on_toggle_fan = on_toggle_fan
         self.cb_on_emergency_stop = on_emergency_stop
+        self.cb_on_toggle_enable = on_toggle_enable
 
     # ----- Funnel de actualizaciones
     def handle_update(self, data: dict):
@@ -315,7 +323,6 @@ class MainWindow(ctk.CTkFrame):
         if pv is not None or sp is not None:
             self.plot.append(pv, sp)
 
-    # ----- UI helpers
     def update_status(self, data: dict):
         sp = data.get("sp")
         pv = data.get("pv")
@@ -324,6 +331,7 @@ class MainWindow(ctk.CTkFrame):
         ena = data.get("enabled", False)
         alarm = data.get("alarm")
         fan = data.get("fan", False)
+        part = data.get("part_code") or "—"   # <-- NUEVO
 
         self.lbl_sp.configure(text=f"SP: {sp:.1f} °C" if sp is not None else "SP: — °C")
         self.lbl_pv.configure(text=f"PV: {pv:.1f} °C" if pv is not None else "PV: — °C")
@@ -331,9 +339,14 @@ class MainWindow(ctk.CTkFrame):
         self.lbl_motor.configure(text=f"Motor: {mot:.1f} %")
         self.lbl_mode.configure(text=f"Modo: {'HABILITADO' if ena else 'DESHABILITADO'}")
         self.lbl_alarm.configure(text=f"Alarma: {alarm if alarm else '—'}")
-        # Reflejar estado de ventilador en botón
-        self.btn_fan.configure(text=f"Ventilador: {'ON' if fan else 'OFF'}")
+        self.lbl_part.configure(text=f"Parte: {part}")   # <-- NUEVO
 
+        # Botón de ventilador
+        self.btn_fan.configure(text=f"Ventilador: {'ON' if fan else 'OFF'}")
+        # Botón de PID (texto acorde al estado actual)
+        self.btn_enable.configure(text="PID: DESHABILITAR" if ena else "PID: HABILITAR")
+
+    # ----- Catálogo / scan
     def load_parts(self, parts):
         for iid in self.table.get_children():
             self.table.delete(iid)
@@ -498,7 +511,7 @@ class MainWindow(ctk.CTkFrame):
             return "break"
         return
 
-    # ---- NUEVOS handlers de botones de barra
+    # ---- Handlers barra
     def _on_toggle_fan(self):
         if self.cb_on_toggle_fan:
             self.cb_on_toggle_fan()
@@ -506,3 +519,7 @@ class MainWindow(ctk.CTkFrame):
     def _on_emergency_stop(self):
         if self.cb_on_emergency_stop:
             self.cb_on_emergency_stop()
+
+    def _on_toggle_enable(self):
+        if self.cb_on_toggle_enable:
+            self.cb_on_toggle_enable()
