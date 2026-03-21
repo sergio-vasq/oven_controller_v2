@@ -252,7 +252,7 @@ class ControllerV2:
                         except Exception:
                             pass
             else:
-                if self.heater is not None:
+                if (self.autotune is None) and (self.heater is not None):
                     try:
                         self.heater.set_duty(0.0)
                     except Exception:
