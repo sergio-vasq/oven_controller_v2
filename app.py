@@ -14,7 +14,7 @@ from ui_ctk.settings_window_ctk import SettingsWindow
 
 from devices.thermocouple_max6675 import MAX6675
 from devices.ssr_timeproportion import SSRTimeProportion
-from devices.dc_motor_pwm import DCMotorPWM
+from devices.step_motor_clock import StepMotorClock
 from devices.fan_gpio import FanGPIO
 from devices.gpio_button import GPIOButton
 
@@ -100,7 +100,7 @@ def main():
     try:
         motor_cfg = cfg.get("motor", {})
         if motor_cfg:
-            motor = DCMotorPWM(motor_cfg)
+            motor = StepMotorClock(cfg)
     except Exception as e:
         print(f"[WARN] Motor PWM not available: {e}")
 

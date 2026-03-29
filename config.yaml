@@ -12,26 +12,40 @@ ssr:
   window_seconds: 1.0
 
 motor:
-  mode: "hardware"
-  soft_pwm:
-    gpio_chip: "/dev/gpiochip4"
-    gpio_line: 19
-    active_high: true
-    pwm_hz: 1000
-  hard_pwm:
-    chip: 0
-    channel: 0
-    frequency_hz: 1000
-  invert_pwm: false
-  enables:
-    r_en:
-      gpio_chip: "/dev/gpiochip4"
-      gpio_line: 8
-      active_high: true
-    l_en:
-      gpio_chip: "/dev/gpiochip4"
-      gpio_line: 22
-      active_high: true
+  type: stepper
+
+stepper:
+  step_gpio_chip: "/dev/gpiochip4"
+  step_gpio_line: 19
+  dir_gpio_chip: "/dev/gpiochip4"
+  dir_gpio_line: 8
+  enable_gpio_chip: "/dev/gpiochip4"
+  enable_gpio_line: 22
+
+  tmin_us: 200    # 100%
+  tmax_us: 1000   # 1%
+
+#motor:
+#  mode: "hardware"
+#  soft_pwm:
+#    gpio_chip: "/dev/gpiochip4"
+#    gpio_line: 19
+#    active_high: true
+#    pwm_hz: 1000
+#  hard_pwm:
+#    chip: 0
+#    channel: 0
+#    frequency_hz: 1000
+#  invert_pwm: false
+#  enables:
+#    r_en:
+#      gpio_chip: "/dev/gpiochip4"
+#      gpio_line: 8
+#      active_high: true
+#    l_en:
+#      gpio_chip: "/dev/gpiochip4"
+#      gpio_line: 22
+#      active_high: true
 
 fan:
   gpio_chip: "/dev/gpiochip4"

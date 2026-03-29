@@ -20,13 +20,19 @@ SSR (Oven)
 - GND   | PIN_6  (GND)       | Black
 - VDC   | PIN_35 (VCC)       | Red
 
-BTS7960 Driver (PWM)
+# BTS7960 Driver (PWM)
+# - GND   | PIN_34 (GND)       | Black
+# - VDC   | PIN_2 (VCC +5V)    | Red
+# - L_EN  | PIN_15             | Brown
+# - R_EN  | PIN_16             | Orange
+# - LPWM  | PIN_39 (GND)       | Yellow
+# - RPWM  | PIN_32 (PWM0_M0)   | Green
+
+CL57T Driver 
 - GND   | PIN_34 (GND)       | Black
-- VDC   | PIN_2 (VCC +5V)    | Red
-- L_EN  | PIN_15             | Brown
-- R_EN  | PIN_16             | Orange
-- LPWM  | PIN_39 (GND)       | Yellow
-- RPWM  | PIN_32 (PWM0_M0)   | Green
+- ENA+  | PIN_15             | Brown
+- DIR+  | PIN_16             | Orange
+- PUL+  | PIN_32             | Green
 
 Stop Button
 - VCC   | PIN_17 (+3.3V)     | Brown
