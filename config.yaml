@@ -16,13 +16,14 @@ motor:
 
 hard_pwm:
   chip: 0
-  channel: 0   # el mismo que antes (pin 19)
+  channel: 0
 
 stepper:
   step_gpio_chip: "/dev/gpiochip4"
   step_gpio_line: 19
   dir_gpio_chip: "/dev/gpiochip4"
   dir_gpio_line: 8
+  dir_cw: true
   enable_gpio_chip: "/dev/gpiochip4"
   enable_gpio_line: 22
 
