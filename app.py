@@ -124,11 +124,15 @@ def main():
     ctk.set_default_color_theme(ui_cfg.get("theme", "blue"))
     root = ctk.CTk()
     root.title("Oven Controller CSC")
-    geometry = ui_cfg.get("geometry", "1100x720")
     try:
-        root.geometry(geometry)
+        root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}+0+0")
     except Exception:
         root.geometry("1100x720")
+
+    icon_path = Path("oven.png")
+    if icon_path.exists():
+        app_icon = tk.PhotoImage(file=icon_path)
+        root.iconphoto(True, app_icon)
 
     win = MainWindow(root)
     appearance = ui_cfg.get("appearance", "Dark")
