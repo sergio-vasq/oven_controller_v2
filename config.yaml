@@ -12,15 +12,19 @@ ssr:
   window_seconds: 1.0
 
 motor:
-  type: stepper
+  type: "stepper_pwm"
+
+hard_pwm:
+  chip: 0
+  channel: 0   # el mismo que antes (pin 19)
 
 stepper:
   step_gpio_chip: "/dev/gpiochip4"
   step_gpio_line: 19
   dir_gpio_chip: "/dev/gpiochip4"
-  dir_gpio_line: 8
+  dir_gpio_line: 22
   enable_gpio_chip: "/dev/gpiochip4"
-  enable_gpio_line: 22
+  enable_gpio_line: 8
 
   tmin_us: 200    # 100%
   tmax_us: 1000   # 1%
