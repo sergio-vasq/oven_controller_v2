@@ -20,7 +20,7 @@ print("PWM running for 10 seconds...")
 time.sleep(10)
 
 print("Stopping PWM...")
-pwm.duty_cycle = 0.0
+
 pwm.disable()
 pwm.close()
 
