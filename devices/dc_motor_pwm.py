@@ -62,13 +62,10 @@ class DCMotorPWM:
         Rearme controlado del CL57T
         """
         try:
-            if self._pwm_enabled:
-                self._pwm.disable()
-                self._pwm_enabled = False
             self._enable.write(True)         # disable CL57T
             time.sleep(self._reset_delay)
             self._enable.write(False)        # enable CL57T
-            time.sleep(0.1)
+            time.sleep(0.5)
         except Exception:
             pass
 
@@ -88,16 +85,24 @@ class DCMotorPWM:
             freq = self.F_MAX
 
         # ← NUEVO: detección de salto grande
+        force_from_min = False
         if self._current_freq is not None:
             delta = abs(freq - self._current_freq)
             if delta >= self._reset_threshold:
                 self._reset_driver()
+                force_from_min = True
 
         if not self._pwm_enabled:
-            self._start_pwm(freq)
+            if force_from_min:
+                self._start_pwm(self.F_MIN)
+                self._current_freq = self.F_MIN
+            else:
+                self._start_pwm(freq)
         else:
             try:
+                self._pwm.duty_cycle = 0.0
                 self._pwm.frequency = freq
+                self._pwm.duty_cycle = 0.5
                 self._current_freq = freq
             except OSError as e:
                 print(f"[PWM WARN] Frequency rejected: {freq} Hz → {e}")
