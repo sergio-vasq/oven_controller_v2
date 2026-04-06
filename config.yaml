@@ -22,12 +22,13 @@ stepper:
   step_gpio_chip: "/dev/gpiochip4"
   step_gpio_line: 19
   dir_gpio_chip: "/dev/gpiochip4"
-  dir_gpio_line: 22
+  dir_gpio_line: 8
   enable_gpio_chip: "/dev/gpiochip4"
-  enable_gpio_line: 8
+  enable_gpio_line: 22
 
-  tmin_us: 200    # 100%
-  tmax_us: 1000   # 1%
+  f_min_hz: 200.0
+  f_max_hz: 2500.0
+
 
 #motor:
 #  mode: "hardware"
