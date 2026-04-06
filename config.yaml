@@ -19,8 +19,8 @@ hard_pwm:
   channel: 0
 
 stepper:
-  step_gpio_chip: "/dev/gpiochip4"
-  step_gpio_line: 19
+  #step_gpio_chip: "/dev/gpiochip4"
+  #step_gpio_line: 19
   dir_gpio_chip: "/dev/gpiochip4"
   dir_gpio_line: 8
   dir_cw: true
@@ -28,7 +28,7 @@ stepper:
   enable_gpio_line: 22
 
   f_min_hz: 200.0
-  f_max_hz: 2500.0
+  f_max_hz: 2000.0
 
 
 #motor:
