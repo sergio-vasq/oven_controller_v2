@@ -1,12 +1,10 @@
-
-# devices/dc_motor_pwm.py
 from periphery import PWM, GPIO
 
 class DCMotorPWM:
     """
     PWM hardware usado como CLOCK (STEP) para CL57T
-    Duty fijo 50 %
-    Frecuencia variable según porcentaje
+    - Duty fijo 50 %
+    - PWM solo activo cuando percent > 0
     """
 
     def __init__(self, cfg: dict):
@@ -20,9 +18,9 @@ class DCMotorPWM:
         self._pwm = PWM(chip, channel)
         self._pwm.frequency = float(step_cfg.get("f_min_hz", 200.0))
         self._pwm.duty_cycle = 0.5
-        self._pwm.enable()
+        self._pwm_enabled = False   # ← CLAVE
 
-        # Límites de frecuencia
+        # Frecuencia
         self.F_MIN = float(step_cfg.get("f_min_hz", 200.0))
         self.F_MAX = float(step_cfg.get("f_max_hz", 2500.0))
 
@@ -46,16 +44,24 @@ class DCMotorPWM:
         p = max(0.0, min(100.0, float(percent)))
 
         if p <= 0.0:
-            # Motor detenido → frecuencia mínima
-            self._pwm.frequency = self.F_MIN
+            # 🔴 DETENER MOTOR
+            if self._pwm_enabled:
+                self._pwm.disable()
+                self._pwm_enabled = False
             return
 
+        # ✅ Arranque controlado
         freq = self.F_MIN + (p / 100.0) * (self.F_MAX - self.F_MIN)
         self._pwm.frequency = freq
 
+        if not self._pwm_enabled:
+            self._pwm.enable()
+            self._pwm_enabled = True
+
     def close(self):
         try:
-            self._pwm.disable()
+            if self._pwm_enabled:
+                self._pwm.disable()
             self._pwm.close()
         except Exception:
             pass
