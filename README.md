@@ -35,7 +35,7 @@ CL57T Driver
 - PUL+  | PIN_32             | Green
 
 Stop Button
-- VCC   | PIN_17 (+3.3V)     | Brown
+- VCC   | PIN_25 (GND)       | Brown
 - Sign  | PIN_3              | White
 
 Vent
