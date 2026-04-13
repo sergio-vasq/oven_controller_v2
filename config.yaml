@@ -69,9 +69,9 @@ inputs:
 
 
 pid:
-  kp: 35.2589
-  ki: 0.3997
-  kd: 777.404
+  kp: 16.1776
+  ki: 0.0453
+  kd: 0
   sample_seconds: 0.5
   output_limits: [0.0, 100.0]
 
@@ -81,7 +81,7 @@ autotune:
   relay_low_percent: 0.0
   hysteresis_c: 0.5
   settle_cycles: 1
-  cycles_target: 1
+  cycles_target: 4
   rule: "zn_classic"
 
 safety:
